@@ -75,7 +75,8 @@
                     sub-id)
                    hrecord-receiver)
                   )]
-    (.awaitRunning (.startAsync consumer))))
+    (.awaitRunning (.startAsync consumer))
+    consumer))
 
 (defn example-hrecord-callback [received-hrecord responder]
   (let [record-id (.getRecordId received-hrecord)
@@ -95,6 +96,8 @@
   (fn [received-hrecord responder]
     (dosync
      (let [record-id (.getRecordId received-hrecord)
-           hrecord   (.getHRecord  received-hrecord)]
-       (.ack responder)
-       (swap! atom conj (parse-int (.getString hrecord ":key")))))))
+           hrecord   (.getHRecord  received-hrecord)
+           value (parse-int (.getString hrecord ":key"))]
+       (swap! atom conj value)
+       (when (contains? @atom value)
+         (.ack responder))))))

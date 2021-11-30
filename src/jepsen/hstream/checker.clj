@@ -58,7 +58,9 @@
           {:valid? :unknown
            :error  "Set was never read"}
 
-          (let [; The THIS-OK set is every read value which we tried to
+          (let [all-add-fail (set/difference attempts adds)
+
+                ; The THIS-OK set is every read value which we tried to
                 ; add to certain position
                 this-ok     (set/intersection final-read this-adds)
 
@@ -66,23 +68,20 @@
                 unexpected  (set/difference final-read attempts)
 
                 ; This-Lost records are those we definitely added but weren't read
-                this-lost   (set/difference this-adds final-read)
+                this-lost   (set/difference this-adds final-read)]
 
-                ; This-Recovered records are those where we didn't know if the add
-                ; succeeded or not, but we found them in the final set.
-                this-recovered (set/difference this-ok this-adds)]
-
-            {:valid?                      (and (empty? this-lost)
-                                               (empty? unexpected)
-                                               (empty? final-read-overlap))
-             :all-attempt-count           (count attempts)
-             :all-acknowledged-count      (count adds)
-             :all-unexpected-count        (count unexpected)
-             :clients-read-overlap        (util/integer-interval-set-str final-read-overlap)
-             :this-stream-ok-count        (count this-ok)
-             :this-stream-lost-count      (count this-lost)
-             :this-stream-recovered-count (count this-recovered)
-             :this-stream-ok              (util/integer-interval-set-str this-ok)
-             :this-stream-lost            (util/integer-interval-set-str this-lost)
-             :all-unexpected              (util/integer-interval-set-str unexpected)
-             :source-recovered            (util/integer-interval-set-str this-recovered)}))))))
+            {:valid?                       (and (empty? this-lost)
+                                                (empty? unexpected)
+                                                (empty? all-add-fail))
+             :All-Adds-ATTEMPED             (count attempts)
+             :All-Adds-SUCCEEDED            (count adds)
+             :All-Adds-FAILED               (count all-add-fail)
+             :All-Adds-UNEXPECTED           (count unexpected)
+             :This-stream-Adds-SUCCEEDED    (count this-adds)
+             :All-clients-Read-OVERLAP      (util/integer-interval-set-str final-read-overlap)
+             :This-stream-Read-OK           (count this-ok)
+             :This-stream-Read-LOST         (count this-lost)
+             :This-stream-Read-OK-details   (util/integer-interval-set-str this-ok)
+             :This-stream-Read-LOST-details (util/integer-interval-set-str this-lost)
+             :All-Adds-UNEXPECTED-details   (util/integer-interval-set-str unexpected)
+             :All-Adds-FAILED-details       (util/integer-interval-set-str all-add-fail)}))))))

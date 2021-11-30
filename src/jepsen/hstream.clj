@@ -23,11 +23,14 @@
             [jepsen.hstream.client :refer :all]
             [jepsen.hstream.utils :refer :all]
             [jepsen.hstream.checker :as local-checker]
-            [jepsen.hstream.mvar :refer :all])
+            [jepsen.hstream.mvar :refer :all]
+            [clojure.stacktrace :refer [e]])
   (:import [io.hstream HRecord]))
 
 (defn db
-  "HStream DB for a particular version."
+  "HStream DB for a particular version. Note that the node
+   environment is set by docker-compose so we do not need
+   to do anything here."
   [version]
   (reify db/DB
     (setup! [_ test node]
@@ -39,17 +42,11 @@
 ;;;;;;;;;; Global Variables ;;;;;;;;;;
 
 ;; Streams
-(def max-streams
-  "The number of HStream streams. It should be a positive natural.
-   The streams will be named by random alphabets."
-  1)
+
 (def test-stream-name-length
   "The length of random stream name. It should be a positive natural
    and not too small to avoid name confliction."
   20)
-(def test-streams
-  "The random-named stream names. It is a vector of strings."
-  (into [] (repeatedly max-streams #(rs/string test-stream-name-length))))
 
 ;; Write: Producers & Related Data
 (def test-producers
@@ -68,18 +65,9 @@
   "The one and only one subscription ID for test."
   (rs/string test-subscription-name-length))
 
-(def test-subscription-stream
-  "The stream of the only subscription."
-  (rand-nth test-streams))
-
 (def subscription-timeout
   "The timeout of subscriptions in SECOND."
   600)
-
-(def subscription-fetch-sleep-time
-  "The sleep time between starting fetching from the stream and
-   shutting down it. It is an integer in SECOND."
-  15)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -87,8 +75,9 @@
                    (map (fn [x] {:type :invoke, :f :add,  :value x}))))
 (def gen-read (gen/once {:type :invoke, :f :read, :value nil}))
 
-(defrecord Client [conn]
+(defrecord Client [opts test-streams test-subscription-stream]
   client/Client
+
   (open! [this _ node]
     (dosync
      (let [service-url      (str node ":6570")
@@ -101,8 +90,10 @@
   (setup! [this _]
     (dosync
      (dorun
-      (map #(let [_ (try+ (create-stream (:client this) %) (catch Exception e nil))
-                  producer (try+ (create-producer (:client this) %) (catch Exception e nil))]
+      (map #(let [_        (try+ (create-stream   (:client this) %)
+                                 (catch Exception e nil))
+                  producer (try+ (create-producer (:client this) %)
+                                 (catch Exception e nil))]
               (alter test-producers assoc % producer)) test-streams)))
     (info "-------- SETTING UP DONE ---------"))
 
@@ -110,15 +101,22 @@
     (try+
      (case (:f op)
        :add (dosync
-             (let [test-data       {:key (:value op)}
-                   producer        (get @test-producers (:stream this))]
+             (let [test-data {:key (:value op)}
+                   producer  (get @test-producers (:stream this))]
                (write-data producer test-data)
                (assoc op :type :ok :stream (:stream this))))
        :read (dosync
               (let [subscription-results (atom [])]
-                (try+ (subscribe (:client this) test-subscription-id test-subscription-stream :earliest subscription-timeout) (catch Exception e nil))
-                (try+ (consume (:client this) test-subscription-id (gen-collect-value-callback subscription-results)) (catch Exception e nil))
-                (Thread/sleep (* 1000 subscription-fetch-sleep-time))
+                (try+ (subscribe (:client this)
+                                 test-subscription-id
+                                 test-subscription-stream
+                                 :earliest
+                                 subscription-timeout)
+                      (catch Exception e nil))
+                (consume (:client this)
+                         test-subscription-id
+                         (gen-collect-value-callback subscription-results))
+                (Thread/sleep (* 1000 (:fetch-wait-time opts)))
                 (assoc op
                        :type :ok
                        :value @subscription-results
@@ -130,7 +128,8 @@
        (assoc op :type :fail :error e))))
 
   (teardown! [this _]
-    (try+ (dorun (map #(delete-stream (:client this) %) test-streams)) (catch Exception e nil)))
+    (try+ (dorun (map #(delete-stream (:client this) %) test-streams))
+          (catch Exception e nil)))
 
   (close! [this _]
     (try+
@@ -142,32 +141,35 @@
   "Given an options map from the command-line runner (e.g. :nodes, :ssh,
   :concurrency, ...), constructs a test map."
   [opts]
-  (info "Creating test..." opts)
-  (merge tests/noop-test
-         opts
-         {:pure-generators true
-          :name    "HStream"
-          :os      ubuntu/os
-          :db      (db "0.6.0")
-          :client  (Client. nil)
-          :checker (checker/compose
-                     {:source-set (local-checker/set+)})
-          :nemesis (nemesis/partition-random-halves)
-          :generator (gen/phases
-                      (->> gen-adds
-                           (gen/stagger (/ (:rate opts)))
-                           (gen/nemesis
-                            (cycle [(gen/sleep 5)
-                                    {:type :info, :f :start}
-                                    (gen/sleep 5)
-                                    {:type :info, :f :stop}]))
-                           (gen/time-limit (:time-limit opts)))
-                      (gen/log "Healing cluster")
-                      (gen/nemesis (gen/once {:type :info, :f :stop}))
-                      (gen/log "Waiting for recovery")
-                      (gen/repeat (:subscription-client-number opts)
-                       (gen/clients gen-read))
-                      (gen/sleep (* 2 subscription-fetch-sleep-time)))}))
+  (let [; "The random-named stream names. It is a vector of strings."
+        test-streams (into [] (repeatedly (:max-streams opts)
+                                          #(rs/string test-stream-name-length)))
+        ; "The stream of the only subscription."
+        test-subscription-stream (rand-nth test-streams)]
+
+    (merge tests/noop-test
+           opts
+           {:pure-generators true
+            :name    "HStream"
+            :os      ubuntu/os
+            :db      (db "0.6.0")
+            :client  (Client. opts test-streams test-subscription-stream)
+            :nemesis nemesis/noop
+            :checker (checker/compose
+                      {:set (local-checker/set+)
+                       :stat (checker/stats)
+                       :latency (checker/latency-graph)
+                       :rate (checker/rate-graph)
+                       :clock (checker/clock-plot)
+                       })
+            :generator (gen/clients
+                        (gen/phases
+                         (->> gen-adds
+                              (gen/stagger (/ (:rate opts)))
+                              (gen/time-limit (:write-time opts)))
+                         (gen/repeat (:consumer-number opts)
+                                     (gen/clients gen-read))
+                         (gen/sleep (+ 10 (:fetch-wait-time opts)))))})))
 
 (def cli-opts
   "Additional command line options."
@@ -175,8 +177,20 @@
     :default  10
     :parse-fn read-string
     :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
-   ["-c" "--subscription-client-number INT" "The number of clients that subscribes the same subscription."
+   ["-c" "--consumer-number INT" "The number of clients that subscribes the same subscription."
     :default  10
+    :parse-fn read-string
+    :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
+   ["-s" "--max-streams INT" "The number of HStream streams to be written to in the test."
+    :default  1
+    :parse-fn read-string
+    :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
+   ["-f" "--fetch-wait-time SECOND" "The time between starting fetching from the stream and shutting down it."
+    :default  15
+    :parse-fn read-string
+    :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
+   ["-w" "--write-time SECOND" "The whole time to write data into database."
+    :default  20
     :parse-fn read-string
     :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
    ])
