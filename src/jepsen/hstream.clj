@@ -103,7 +103,7 @@
        :add (dosync
              (let [test-data {:key (:value op)}
                    producer  (get @test-producers (:stream this))]
-               (write-data producer test-data)
+               (.get (write-data producer test-data))
                (assoc op :type :ok :stream (:stream this))))
        :read (dosync
               (let [subscription-results (atom [])]
@@ -154,13 +154,14 @@
             :os      ubuntu/os
             :db      (db "0.6.0")
             :client  (Client. opts test-streams test-subscription-stream)
-            :nemesis nemesis/noop
+            :nemesis nemesis/noop ;(nemesis/clock-scrambler 86400);(nemesis/hammer-time "hstream-server")
             :checker (checker/compose
                       {:set (local-checker/set+)
                        :stat (checker/stats)
                        :latency (checker/latency-graph)
                        :rate (checker/rate-graph)
                        :clock (checker/clock-plot)
+                       :exceptions (checker/unhandled-exceptions)
                        })
             :generator (gen/clients
                         (gen/phases
@@ -169,7 +170,15 @@
                               (gen/time-limit (:write-time opts)))
                          (gen/repeat (:consumer-number opts)
                                      (gen/clients gen-read))
-                         (gen/sleep (+ 10 (:fetch-wait-time opts)))))})))
+                         (gen/sleep (+ 10 (:fetch-wait-time opts))))
+                        (->> (->> [(gen/sleep 5)
+                                   {:type :info :f :start}
+                                   (gen/sleep 5)
+                                   {:type :info :f :stop}]
+                                  cycle)
+                             (gen/time-limit (+ (:write-time opts)
+                                                (:fetch-wait-time opts))))
+                        )})))
 
 (def cli-opts
   "Additional command line options."

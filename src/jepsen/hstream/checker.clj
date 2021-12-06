@@ -10,7 +10,8 @@
             [jepsen.util :as util]
             [knossos [op :as op]]
             [slingshot.slingshot :refer [try+ throw+]]
-            [jepsen.checker :refer :all]))
+            [jepsen.checker :refer :all]
+            [jepsen.hstream.utils :refer [queue-property]]))
 
 (defn set+
   "Given a set of :add operations followed by **A SERIES OF** final :read, verifies that
@@ -28,27 +29,26 @@
                           (r/filter op/invoke?)
                           (r/filter #(= :add (:f %)))
                           (r/map :value)
-                          (into #{}))
+                          (into []))
             adds (->> history
                       (r/filter op/ok?)
                       (r/filter #(= :add (:f %)))
                       (r/map :value)
-                      (into #{}))
+                      (into []))
             this-adds (->> history
                            (r/filter op/ok?)
                            (r/filter #(= :add (:f %)))
                            (r/filter #(= read-stream (:stream %)))
                            (r/map :value)
-                           (into #{}))
-            final-read (->> history
-                            (r/filter op/ok?)
-                            (r/filter #(= :read (:f %)))
-                            (r/map :value)
+                           (into []))
+            reads (->> history
+                       (r/filter op/ok?)
+                       (r/filter #(= :read (:f %)))
+                       (r/map :value)
+                       (into []))
+            final-read (->> reads
                             (reduce (fn [acc x] (set/union acc (into #{} x))) #{}))
-            final-read-overlap (->> history
-                                    (r/filter op/ok?)
-                                    (r/filter #(= :read (:f %)))
-                                    (r/map :value)
+            final-read-overlap (->> reads
                                     (reduce (fn [acc x]
                                               (if (empty? acc)
                                                 (into #{} x)
@@ -58,30 +58,37 @@
           {:valid? :unknown
            :error  "Set was never read"}
 
-          (let [all-add-fail (set/difference attempts adds)
+          (let [all-add-fail (set/difference (into #{} attempts) (into #{} adds))
 
                 ; The THIS-OK set is every read value which we tried to
                 ; add to certain position
-                this-ok     (set/intersection final-read this-adds)
+                this-ok     (set/intersection final-read (into #{} this-adds))
 
                 ; Unexpected records are those we *never* attempted.
-                unexpected  (set/difference final-read attempts)
+                unexpected  (set/difference final-read (into #{} attempts))
 
                 ; This-Lost records are those we definitely added but weren't read
-                this-lost   (set/difference this-adds final-read)]
+                this-lost   (set/difference (into #{} this-adds) final-read)
 
-            {:valid?                       (and (empty? this-lost)
-                                                (empty? unexpected)
-                                                (empty? all-add-fail))
-             :All-Adds-ATTEMPED             (count attempts)
-             :All-Adds-SUCCEEDED            (count adds)
-             :All-Adds-FAILED               (count all-add-fail)
-             :All-Adds-UNEXPECTED           (count unexpected)
-             :This-stream-Adds-SUCCEEDED    (count this-adds)
-             :All-clients-Read-OVERLAP      (util/integer-interval-set-str final-read-overlap)
-             :This-stream-Read-OK           (count this-ok)
-             :This-stream-Read-LOST         (count this-lost)
-             :This-stream-Read-OK-details   (util/integer-interval-set-str this-ok)
-             :This-stream-Read-LOST-details (util/integer-interval-set-str this-lost)
-             :All-Adds-UNEXPECTED-details   (util/integer-interval-set-str unexpected)
-             :All-Adds-FAILED-details       (util/integer-interval-set-str all-add-fail)}))))))
+                reads-queue-property (map #(queue-property this-adds %) reads)]
+
+            {:valid?                          (and (empty? this-lost)
+                                                   (empty? unexpected)
+                                                   (empty? all-add-fail)
+                                                   (reduce #(and %1 %2) reads-queue-property))
+             :All-Adds-ATTEMPED               (count attempts)
+             :All-Adds-SUCCEEDED              (count adds)
+             :All-Adds-FAILED                 (count all-add-fail)
+             :All-Adds-UNEXPECTED             (count unexpected)
+             :This-stream-Adds-SUCCEEDED      (count this-adds)
+             :All-clients-Read-OVERLAP        (util/integer-interval-set-str final-read-overlap)
+             :All-clients-Read-Order-Property reads-queue-property
+             :This-stream-Read-OK             (count this-ok)
+             :This-stream-Read-LOST           (count this-lost)
+             :This-stream-Read-OK-details     (util/integer-interval-set-str this-ok)
+             :This-stream-Read-LOST-details   (util/integer-interval-set-str this-lost)
+             :This-stream-Read-details        (map #(into [] %) reads)
+             :This-stream-Adds-SUCCEEDED-details this-adds
+             :All-Adds-SUCCEEDED-details      (util/integer-interval-set-str (into #{} adds))
+             :All-Adds-UNEXPECTED-details     (util/integer-interval-set-str unexpected)
+             :All-Adds-FAILED-details         (util/integer-interval-set-str all-add-fail)}))))))
