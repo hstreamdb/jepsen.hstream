@@ -1,0 +1,135 @@
+version: '3.7'
+x-node:
+  &default-node
+  build: ./node
+  env_file:
+    - ./secret/node.env
+    - ./secret/control.env
+  secrets:
+    - authorized_keys
+  tty: true
+  tmpfs:
+    - /run:size=100M
+    - /run/lock:size=100M
+  volumes:
+    - "jepsen-shared:/var/jepsen/shared"
+    - "ld-shared:/data/store"
+    - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+  networks:
+    - jepsen
+  cap_add:
+    - ALL
+  ports:
+    - ${JEPSEN_PORT:-22}
+
+volumes:
+  jepsen-shared:
+  ld-shared:
+
+secrets:
+  authorized_keys:
+    file: ./secret/authorized_keys
+
+networks:
+  jepsen:
+
+services:
+  logdevice:
+    container_name: jepsen-ld
+    hostname: ld
+    build: ./ld
+    env_file: ./secret/node.env
+    secrets:
+      - authorized_keys
+    tmpfs:
+      - /run:size=100M
+      - /run/lock:size=100M
+    expose:
+      - "38000-49000"
+    networks:
+      - jepsen
+    cap_add:
+      - ALL
+    volumes:
+      - "jepsen-shared:/var/jepsen/shared"
+      - "ld-shared:/data/store"
+      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+
+  zookeeper:
+    container_name: jepsen-zookeeper
+    hostname: zk
+    build: ./zk
+    env_file: ./secret/node.env
+    secrets:
+      - authorized_keys
+    tmpfs:
+      - /run:size=100M
+      - /run/lock:size=100M
+    expose:
+      - "2188"
+      - "2888"
+      - "3888"
+    networks:
+      - jepsen
+    cap_add:
+      - ALL
+    volumes:
+      - "jepsen-shared:/var/jepsen/shared"
+      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+
+  control:
+    container_name: jepsen-control
+    hostname: control
+    depends_on:
+      - n1
+      - n2
+      - n3
+      - n4
+      - n5
+
+    build: ./control
+    env_file: ./secret/control.env
+    privileged: true
+    expose:
+      - "22"
+      - "8080"
+    networks:
+      - jepsen
+    volumes:
+      - "../:/home/Work"
+      - "jepsen-shared:/var/jepsen/shared"
+  n1:
+    << : *default-node
+    container_name: jepsen-n1
+    hostname: n1
+    depends_on:
+      - zookeeper
+      - logdevice
+  n2:
+    << : *default-node
+    container_name: jepsen-n2
+    hostname: n2
+    depends_on:
+      - zookeeper
+      - logdevice
+  n3:
+    << : *default-node
+    container_name: jepsen-n3
+    hostname: n3
+    depends_on:
+      - zookeeper
+      - logdevice
+  n4:
+    << : *default-node
+    container_name: jepsen-n4
+    hostname: n4
+    depends_on:
+      - zookeeper
+      - logdevice
+  n5:
+    << : *default-node
+    container_name: jepsen-n5
+    hostname: n5
+    depends_on:
+      - zookeeper
+      - logdevice

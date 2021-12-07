@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  #schedule:
+  #  - cron: 0,30 * * * *
+
+jobs:
+  pre-build:
+    runs-on: ubuntu-latest
+    name: The simplest jepsen test for HStreamDB
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: "recursive"
+
+      - name: login to github container registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare environment for test
+        run: |
+          cd ./docker
+          ./init-secret.sh
+
+      - name: Start test cluster & run jepsen test
+        run: |
+          docker-compose --file ./docker/docker-compose.yml --compatibility -p jepsen up --build --abort-on-container-exit
+
+      - name: 'Upload Artifact'
+        uses: actions/upload-artifact@v2
+        with:
+          name: jepsen-test-result
+          path: store
+          retention-days: 7

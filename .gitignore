@@ -16,3 +16,4 @@ pom.xml.asc
 .lsp/
 store/
 local/
+docker/secret/
