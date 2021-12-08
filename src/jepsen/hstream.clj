@@ -151,10 +151,10 @@
            opts
            {:pure-generators true
             :name    "HStream"
-            :os      ubuntu/os
             :db      (db "0.6.0")
             :client  (Client. opts test-streams test-subscription-stream)
             :nemesis nemesis/noop ;(nemesis/clock-scrambler 86400);(nemesis/hammer-time "hstream-server")
+            :ssh {:dummy? (:dummy opts)}
             :checker (checker/compose
                       {:set (local-checker/set+)
                        :stat (checker/stats)
@@ -202,6 +202,10 @@
     :default  20
     :parse-fn read-string
     :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
+   [nil "--dummy BOOL" "Whether to use dummy ssh connection for local test."
+    :default  false
+    :parse-fn read-string
+    :validate [#(boolean? %) "Must be a boolean"]]
    ])
 
 (defn -main
