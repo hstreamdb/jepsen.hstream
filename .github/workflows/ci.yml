@@ -2,8 +2,8 @@ name: CI
 
 on:
   push:
-  #schedule:
-  #  - cron: 0,30 * * * *
+  schedule:
+    - cron: 0 0/4 * * *
 
 jobs:
   pre-build:
@@ -34,5 +34,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: jepsen-test-result
-          path: store
+          path: |
+            store/HStream
+            !store/HStream/latest
           retention-days: 7
