@@ -82,13 +82,13 @@
              :All-Adds-UNEXPECTED             (count unexpected)
              :This-stream-Adds-SUCCEEDED      (count this-adds)
              :All-clients-Read-OVERLAP        (util/integer-interval-set-str final-read-overlap)
-             :All-clients-Read-Order-Property reads-queue-property
+             :All-clients-Read-Order-Property (map str reads-queue-property)
              :This-stream-Read-OK             (count this-ok)
              :This-stream-Read-LOST           (count this-lost)
              :This-stream-Read-OK-details     (util/integer-interval-set-str this-ok)
              :This-stream-Read-LOST-details   (util/integer-interval-set-str this-lost)
-             :This-stream-Read-details        (map #(into [] %) reads)
-             :This-stream-Adds-SUCCEEDED-details this-adds
+             :This-stream-Read-details        (map #(str (into [] %)) reads)
+             :This-stream-Adds-SUCCEEDED-details (str this-adds)
              :All-Adds-SUCCEEDED-details      (util/integer-interval-set-str (into #{} adds))
              :All-Adds-UNEXPECTED-details     (util/integer-interval-set-str unexpected)
              :All-Adds-FAILED-details         (util/integer-interval-set-str all-add-fail)}))))))
