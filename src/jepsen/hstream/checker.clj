@@ -11,7 +11,7 @@
             [knossos [op :as op]]
             [slingshot.slingshot :refer [try+ throw+]]
             [jepsen.checker :refer :all]
-            [jepsen.hstream.utils :refer [queue-property]]))
+            [jepsen.hstream.utils :refer [queue-property is-sorted?]]))
 
 (defn set+
   "Given a set of :add operations followed by **A SERIES OF** final :read, verifies that
@@ -48,11 +48,15 @@
                        (into []))
             final-read (->> reads
                             (reduce (fn [acc x] (set/union acc (into #{} x))) #{}))
-            final-read-overlap (->> reads
-                                    (reduce (fn [acc x]
-                                              (if (empty? acc)
-                                                (into #{} x)
-                                                (set/intersection acc (into #{} x)))) #{}))
+            final-read-overlap (:intersection
+                                (reduce (fn [acc x]
+                                          (let [union (:union acc)
+                                                intersection (:intersection acc)
+                                                new-intersection (set/intersection union (into #{} x))
+                                                new-union (set/union union (into #{} x))]
+                                            {:union new-union
+                                             :intersection (set/union intersection new-intersection)}))
+                                        {:union #{} :intersection #{}} reads))
             ]
         (if-not final-read
           {:valid? :unknown
@@ -70,6 +74,14 @@
                 ; This-Lost records are those we definitely added but weren't read
                 this-lost   (set/difference (into #{} this-adds) final-read)
 
+                ; The basic requirement is that the order of messages read from DB
+                ; follows the one when the `add` operations were **DONE**. This only
+                ; applies to the SYNC write mode.
+                ; Extraly, we require that the order of messages read from DB
+                ; follows the one when the `add` operations were **CALLED**. This is
+                ; what 'order property' really means.
+                ; NOTE THE SECOND PROPERTY HOLDS ONLY WHEN USING **PURE** SYNC WRITING
+                ; MODE. HOWEVER, THE CURRENT SYNC MODE DOES NOT HOLD THE PROPERTY.
                 reads-queue-property (map #(queue-property this-adds %) reads)]
 
             {:valid?                          (and (empty? this-lost)
@@ -79,7 +91,7 @@
              :All-Adds-ATTEMPED               (count attempts)
              :All-Adds-SUCCEEDED              (count adds)
              :All-Adds-FAILED                 (count all-add-fail)
-             :All-Adds-UNEXPECTED             (count unexpected)
+             :This-stream-Read-UNEXPECTED     (count unexpected)
              :This-stream-Adds-SUCCEEDED      (count this-adds)
              :All-clients-Read-OVERLAP        (util/integer-interval-set-str final-read-overlap)
              :All-clients-Read-Order-Property (map str reads-queue-property)
@@ -90,5 +102,5 @@
              :This-stream-Read-details        (map #(str (into [] %)) reads)
              :This-stream-Adds-SUCCEEDED-details (str this-adds)
              :All-Adds-SUCCEEDED-details      (util/integer-interval-set-str (into #{} adds))
-             :All-Adds-UNEXPECTED-details     (util/integer-interval-set-str unexpected)
+             :This-stream-Read-UNEXPECTED-details (util/integer-interval-set-str unexpected)
              :All-Adds-FAILED-details         (util/integer-interval-set-str all-add-fail)}))))))

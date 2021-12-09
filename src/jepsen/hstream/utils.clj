@@ -6,6 +6,11 @@
   [coll elm]
   (some #(= elm %) coll))
 
+(defn is-sorted?
+  "true if the coll is already sorted by `<=`"
+  [coll]
+  (apply <= coll))
+
 (defn parse-int [number-string]
   (try (Integer/parseInt number-string)
     (catch Exception e nil)))

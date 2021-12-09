@@ -75,7 +75,7 @@
                    (map (fn [x] {:type :invoke, :f :add,  :value x}))))
 (defn gen-read [id] (gen/once {:type :invoke, :f :read, :value nil, :consumer-id id}))
 
-(defrecord Client [opts test-streams test-subscription-stream subscription-results]
+(defrecord Client [opts test-streams test-subscription-stream subscription-results futures]
   client/Client
 
   (open! [this _ node]
@@ -102,8 +102,11 @@
      (case (:f op)
        :add (dosync
              (let [test-data {:key (:value op)}
-                   producer  (get @test-producers (:stream this))]
-               (.get (write-data producer test-data))
+                   producer  (get @test-producers (:stream this))
+                   write-future (write-data producer test-data)]
+               (if (:async-write opts)
+                 (alter futures assoc (:client this) write-future)
+                 (.join write-future))
                (assoc op :type :ok :stream (:stream this))))
        :read (let [subscription-result (get subscription-results (:consumer-id op))]
                 (try+ (subscribe (:client this)
@@ -133,8 +136,12 @@
   (close! [this _]
     (try+
      (dosync (println ">>> Closing client...")
+             (let [write-future (get @futures (:client this))]
+               (when (not (nil? write-future))
+                 (.join write-future)))
              (.close (:client this)))
-     (catch Exception e nil))))
+     (catch Exception e nil))
+    ))
 
 (defn hstream-test
   "Given an options map from the command-line runner (e.g. :nodes, :ssh,
@@ -145,14 +152,15 @@
                                           #(rs/string test-stream-name-length)))
         ; "The stream of the only subscription."
         test-subscription-stream (rand-nth test-streams)
-        subscription-results (into [] (repeatedly (:consumer-number opts) #(ref [])))]
+        subscription-results (into [] (repeatedly (:consumer-number opts) #(ref [])))
+        futures (ref {})]
 
     (merge tests/noop-test
            opts
            {:pure-generators true
             :name    "HStream"
             :db      (db "0.6.0")
-            :client  (Client. opts test-streams test-subscription-stream subscription-results)
+            :client  (Client. opts test-streams test-subscription-stream subscription-results futures)
             :nemesis nemesis/noop ;(nemesis/clock-scrambler 86400);(nemesis/hammer-time "hstream-server")
             :ssh {:dummy? (:dummy opts)}
             :checker (checker/compose
@@ -202,6 +210,10 @@
     :parse-fn read-string
     :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
    [nil "--dummy BOOL" "Whether to use dummy ssh connection for local test."
+    :default  false
+    :parse-fn read-string
+    :validate [#(boolean? %) "Must be a boolean"]]
+   [nil "--async-write BOOL" "Whether to use async write mode. If it is set to false, return :ok until every write operation finishes."
     :default  false
     :parse-fn read-string
     :validate [#(boolean? %) "Must be a boolean"]]
