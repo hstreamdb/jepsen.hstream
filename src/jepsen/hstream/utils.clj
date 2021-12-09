@@ -1,6 +1,11 @@
 (ns jepsen.hstream.utils
   (:gen-class))
 
+(defn in?
+  "true if coll contains elm"
+  [coll elm]
+  (some #(= elm %) coll))
+
 (defn parse-int [number-string]
   (try (Integer/parseInt number-string)
     (catch Exception e nil)))

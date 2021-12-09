@@ -84,20 +84,21 @@
     (info "~~~ Received: ID = " record-id " contents = " hrecord)
     (.ack responder)))
 
-(defn gen-collect-hrecord-callback [atom]
+(defn gen-collect-hrecord-callback [ref]
   (fn [received-hrecord responder]
     (dosync
      (let [record-id (.getRecordId received-hrecord)
            hrecord   (.getHRecord  received-hrecord)]
-       (swap! atom conj {:record-id record-id :hrecord hrecord})
+       (alter ref conj {:record-id record-id :hrecord hrecord})
        (.ack responder)))))
 
-(defn gen-collect-value-callback [atom]
+(defn gen-collect-value-callback [ref]
   (fn [received-hrecord responder]
-    (dosync
      (let [record-id (.getRecordId received-hrecord)
            hrecord   (.getHRecord  received-hrecord)
            value (parse-int (.getString hrecord ":key"))]
-       (swap! atom conj value)
-       (when (contains? @atom value)
-         (.ack responder))))))
+       (dosync
+        (alter ref conj value)
+        (if (in? @ref value)
+          (.ack responder)
+          (warn "Client got an message, but failed to acturally RECEIVING it!"))))))
