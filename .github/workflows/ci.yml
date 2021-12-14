@@ -2,8 +2,8 @@ name: CI
 
 on:
   push:
-  schedule:
-    - cron: 0 0/4 * * *
+  #schedule:
+  #  - cron: 0 0/4 * * *
 
 jobs:
   pre-build:
