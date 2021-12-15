@@ -11,7 +11,7 @@
             [knossos [op :as op]]
             [slingshot.slingshot :refer [try+ throw+]]
             [jepsen.checker :refer :all]
-            [jepsen.hstream.utils :refer [queue-property is-sorted?]]))
+            [jepsen.hstream.utils :refer [queue-property is-sorted? map-value]]))
 
 (defn set+
   "Given a set of :add operations followed by **A SERIES OF** final :read, verifies that
@@ -20,59 +20,80 @@
   []
   (reify Checker
     (check [this test history opts]
-      (let [read-stream (->> history
+      (let [;; #{stream}
+            read-streams (->> history
                               (r/filter op/ok?)
                               (r/filter #(= :read (:f %)))
                               (r/map :stream)
-                              (reduce (fn [_ x] x) nil))
+                              (into #{}))
+            ;; {stream [value]}
             attempts (->> history
                           (r/filter op/invoke?)
                           (r/filter #(= :add (:f %)))
-                          (r/map :value)
-                          (into []))
+                          (group-by :stream)
+                          (map-value #(into [] (map :value %))))
+            ;; {stream [value]}
             adds (->> history
                       (r/filter op/ok?)
                       (r/filter #(= :add (:f %)))
-                      (r/map :value)
-                      (into []))
-            this-adds (->> history
-                           (r/filter op/ok?)
-                           (r/filter #(= :add (:f %)))
-                           (r/filter #(= read-stream (:stream %)))
-                           (r/map :value)
-                           (into []))
-            reads (->> history
+                      (group-by :stream)
+                      (map-value #(into [] (map :value %))))
+            ;; {stream [[value]]}
+            reads-raw (->> history
                        (r/filter op/ok?)
                        (r/filter #(= :read (:f %)))
-                       (r/map :value)
-                       (into []))
-            final-read (->> reads
-                            (reduce (fn [acc x] (set/union acc (into #{} x))) #{}))
-            final-read-overlap (:intersection
-                                (reduce (fn [acc x]
-                                          (let [union (:union acc)
-                                                intersection (:intersection acc)
-                                                new-intersection (set/intersection union (into #{} x))
-                                                new-union (set/union union (into #{} x))]
-                                            {:union new-union
-                                             :intersection (set/union intersection new-intersection)}))
-                                        {:union #{} :intersection #{}} reads))
+                       (group-by :stream)
+                       (map-value #(into [] (map :value %))))
+            ;; {stream [value]}
+            reads (->> reads-raw
+                       (map-value #(into [] (apply concat %))))
+            ;; {stream #{value}}
+            reads-overlap (map-value
+                           #(:intersection
+                             (reduce (fn [acc x]
+                                       (let [union (:union acc)
+                                             intersection (:intersection acc)
+                                             new-intersection (set/intersection union (into #{} x))
+                                             new-union (set/union union (into #{} x))]
+                                         {:union new-union
+                                          :intersection (set/union intersection new-intersection)}))
+                                     {:union #{} :intersection #{}} %)) reads-raw)
             ]
-        (if-not final-read
+        (if-not reads
           {:valid? :unknown
            :error  "Set was never read"}
 
-          (let [all-add-fail (set/difference (into #{} attempts) (into #{} adds))
+          (let [;; {stream #{value}}
+                add-fail
+                (into {}
+                      (map (fn [[k1 v1]]
+                             (let [v2 (get adds k1)]
+                               [k1 (set/difference (into #{} v1) (into #{} v2))]))
+                           attempts))
 
-                ; The THIS-OK set is every read value which we tried to
-                ; add to certain position
-                this-ok     (set/intersection final-read (into #{} this-adds))
+                ;; {stream #{value}}
+                read-correct
+                (into {}
+                      (map (fn [[k1 v1]]
+                             (let [v2 (get adds k1)]
+                               [k1 (set/intersection (into #{} v1) (into #{} v2))]))
+                           reads))
 
-                ; Unexpected records are those we *never* attempted.
-                unexpected  (set/difference final-read (into #{} attempts))
+                ;; {stream #{value}}
+                read-lost
+                (into {}
+                      (map (fn [[k1 v1]]
+                             (let [v2 (get adds k1)]
+                               [k1 (set/difference (into #{} v2) (into #{} v1))]))
+                           reads))
 
-                ; This-Lost records are those we definitely added but weren't read
-                this-lost   (set/difference (into #{} this-adds) final-read)
+                ;; {stream #{value}}
+                read-unexpected
+                (into {}
+                      (map (fn [[k1 v1]]
+                             (let [v2 (get attempts k1)]
+                               [k1 (set/difference (into #{} v1) (into #{} v2))]))
+                           reads))
 
                 ; The basic requirement is that the order of messages read from DB
                 ; follows the one when the `add` operations were **DONE**. This only
@@ -82,25 +103,57 @@
                 ; what 'order property' really means.
                 ; NOTE THE SECOND PROPERTY HOLDS ONLY WHEN USING **PURE** SYNC WRITING
                 ; MODE. HOWEVER, THE CURRENT SYNC MODE DOES NOT HOLD THE PROPERTY.
-                reads-queue-property (map #(queue-property this-adds %) reads)]
+                ;; {stream bool}
+                read-queue-property
+                (into {} (map (fn [[k1 v1s]]
+                                (let [v2 (get adds k1)
+                                      this-stream-every-consumer-properties (map #(queue-property v2 %) v1s)]
+                                  [k1 (reduce #(and %1 %2)
+                                              this-stream-every-consumer-properties)]))
+                              reads-raw))
+                ]
 
-            {:valid?                          (and (empty? this-lost)
-                                                   (empty? unexpected)
-                                                   (empty? all-add-fail)
-                                                   (reduce #(and %1 %2) reads-queue-property))
-             :All-Adds-ATTEMPED               (count attempts)
-             :All-Adds-SUCCEEDED              (count adds)
-             :All-Adds-FAILED                 (count all-add-fail)
-             :This-stream-Read-UNEXPECTED     (count unexpected)
-             :This-stream-Adds-SUCCEEDED      (count this-adds)
-             :All-clients-Read-OVERLAP        (util/integer-interval-set-str final-read-overlap)
-             :All-clients-Read-Order-Property (map str reads-queue-property)
-             :This-stream-Read-OK             (count this-ok)
-             :This-stream-Read-LOST           (count this-lost)
-             :This-stream-Read-OK-details     (util/integer-interval-set-str this-ok)
-             :This-stream-Read-LOST-details   (util/integer-interval-set-str this-lost)
-             :This-stream-Read-details        (map #(str (into [] %)) reads)
-             :This-stream-Adds-SUCCEEDED-details (str this-adds)
-             :All-Adds-SUCCEEDED-details      (util/integer-interval-set-str (into #{} adds))
-             :This-stream-Read-UNEXPECTED-details (util/integer-interval-set-str unexpected)
-             :All-Adds-FAILED-details         (util/integer-interval-set-str all-add-fail)}))))))
+            {;; ----------------- VALID -----------------
+             :valid?                      (reduce #(and %1 %2)
+                                                  (concat
+                                                   (vals (map-value empty? read-lost))
+                                                   (vals (map-value empty? read-unexpected))
+                                                   (vals (map-value empty? add-fail))
+                                                   (vals read-queue-property)))
+             ;; ----------------- Adds -----------------
+             :Adds-ATTEMPED-total         (->> (map-value count attempts)
+                                               vals
+                                               (reduce +))
+             :Adds-SUCCEEDED-total        (->> (map-value count adds)
+                                               vals
+                                               (reduce +))
+             :Adds-FAILED-total           (->> (map-value count add-fail)
+                                               vals
+                                               (reduce +))
+             :Adds-ATTEMPED-count         (map-value count attempts)
+             :Adds-SUCCEEDED-count        (map-value count adds)
+             :Adds-FAILED-count           (map-value count add-fail)
+             :Adds-ATTEMPED-details       (map str attempts)
+             :Adds-SUCCEEDED-details      (map str adds)
+             :Adds-FAILED-details         (map str add-fail)
+             ;; ----------------- Reads -----------------
+             :Reads-STREAMS               read-streams
+             :Reads-FETCHED-total         (->> (map-value count reads)
+                                               vals
+                                               (reduce +))
+             :Reads-CORRECT-total         (->> (map-value count read-correct)
+                                               vals
+                                               (reduce +))
+             :Reads-LOST-total            (->> (map-value count read-lost)
+                                               vals
+                                               (reduce +))
+             :Reads-FETCHED-count         (map-value count reads)
+             :Reads-CORRECT-count         (map-value count read-correct)
+             :Reads-LOST-count            (map-value count read-lost)
+             :Reads-FETCHED-details       (map-value str reads-raw)
+             :Reads-CORRECT-details       (map-value str read-correct)
+             :Reads-LOST-details          (map-value str read-lost)
+             :Reads-ORDER-PROPERTY        read-queue-property
+             :Reads-OVERLAP               (map-value str reads-overlap)
+             ;(util/integer-interval-set-str all-add-fail)
+             }))))))
