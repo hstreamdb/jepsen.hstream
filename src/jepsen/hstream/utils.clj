@@ -13,7 +13,10 @@
 
 (defn parse-int [number-string]
   (try (Integer/parseInt number-string)
-    (catch Exception e nil)))
+       (catch Exception e nil)))
+
+(defn map-value [f m]
+  (into {} (map (fn [[k v]] [k (f v)]) m)))
 
 (defn queue-property [pushes pops]
   (:is-valid

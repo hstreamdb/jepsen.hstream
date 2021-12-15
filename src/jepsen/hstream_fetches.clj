@@ -1,4 +1,4 @@
-(ns jepsen.hstream
+(ns jepsen.hstream-fetches
   (:gen-class)
   (:require [clojure.string     :as str]
             [clojure.core.reducers :as reducers]
@@ -45,15 +45,6 @@
   (ref {}))
 
 ;; Read: Subscriptions & Related Data
-(def test-subscription-name-length
-  "The length of random subscription ID. It should be a positive natural
-   and not too small to avoid name confliction."
-  10)
-
-(def test-subscription-id
-  "The one and only one subscription ID for test."
-  (rs/string test-subscription-name-length))
-
 (def subscription-timeout
   "The timeout of subscriptions in SECOND."
   600)
@@ -65,6 +56,8 @@
        (map (fn [x] {:type :invoke, :f :add, :value x, :stream (rand-nth streams)}))))
 (defn gen-read [stream id]
   (gen/once {:type :invoke, :f :read, :value nil, :consumer-id id, :stream stream}))
+(defn gen-add [stream x]   (gen/once {:type :invoke, :f :add, :value x, :stream stream}))
+(defn gen-sub [stream] (gen/once {:type :invoke, :f :sub, :value stream, :stream stream}))
 
 (defrecord Client [opts test-streams subscription-results futures]
   client/Client
@@ -84,7 +77,6 @@
                   producer (try+ (create-producer (:client this) %)
                                  (catch Exception e nil))]
               (alter test-producers assoc % producer)) test-streams)))
-    (pp/pprint this)
     (info "-------- SETTING UP DONE ---------"))
 
   (invoke! [this _ op]
@@ -98,16 +90,20 @@
                  (alter futures assoc (:client this) write-future)
                  (.join write-future))
                (assoc op :type :ok)))
-       :read (let [subscription-result (get subscription-results (:consumer-id op))]
-                (try+ (subscribe (:client this)
-                                 test-subscription-id
-                                 (:stream op)
-                                 :earliest
-                                 subscription-timeout)
-                      (catch Exception e nil))
+       :sub (let [test-subscription-id (str "subscription_" (:stream op))]
+              (subscribe (:client this)
+                         test-subscription-id
+                         (:stream op)
+                         :earliest
+                         subscription-timeout)
+              (assoc op :type :ok :sub-id test-subscription-id))
+       :read (let [subscription-result (get subscription-results (:consumer-id op))
+                   test-subscription-id (str "subscription_" (:stream op))]
+               (try+
                 (consume (:client this)
                          test-subscription-id
                          (gen-collect-value-callback subscription-result))
+                (catch Exception e nil))
                 (Thread/sleep (* 1000 (:fetch-wait-time opts)))
                 (assoc op
                        :type :ok
@@ -139,9 +135,7 @@
   (let [; "The random-named stream names. It is a vector of strings."
         test-streams (into [] (repeatedly (:max-streams opts)
                                           #(rs/string test-stream-name-length)))
-        ; "The stream of the only subscription."
-        test-subscription-stream (rand-nth test-streams)
-        subscription-results (into [] (repeatedly (:consumer-number opts) #(ref [])))
+        subscription-results (into [] (repeatedly (:fetching-number opts) #(ref [])))
         futures (ref {})]
 
     (merge tests/noop-test
@@ -161,13 +155,16 @@
                        :exceptions (checker/unhandled-exceptions)
                        })
             :generator (gen/clients
+                        ;; clients
                         (gen/phases
+                         (map gen-sub test-streams)
                          (->> (gen-adds test-streams)
-                              (gen/stagger (/ (:rate opts)))
-                              (gen/time-limit (:write-time opts)))
-                         (map #(gen-read test-subscription-stream %)
-                              (range 0 (:consumer-number opts)))
+                                        (gen/stagger (/ (:rate opts)))
+                                        (gen/time-limit (:write-time opts)))
+                         (map #(gen-read (rand-nth test-streams) %)
+                              (range 0 (:fetching-number opts)))
                          (gen/sleep (+ 10 (:fetch-wait-time opts))))
+                        ;; nemesis
                         (->> (->> [(gen/sleep 5)
                                    {:type :info :f :start}
                                    (gen/sleep 5)
@@ -180,7 +177,7 @@
 (def cli-opts
   "Additional command line options."
   (concat common/cli-opts
-          [["-c" "--consumer-number INT" "The number of clients that subscribes the same subscription."
+          [[nil "--fetching-number INT" "The number of fetching operations in total."
             :default  10
             :parse-fn read-string
             :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
