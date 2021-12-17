@@ -119,7 +119,8 @@
                                                    (vals (map-value empty? read-lost))
                                                    (vals (map-value empty? read-unexpected))
                                                    (vals (map-value empty? add-fail))
-                                                   (vals read-queue-property)))
+                                                   ; (vals read-queue-property)
+                                                   ))
              ;; ----------------- Adds -----------------
              :Adds-ATTEMPED-total         (->> (map-value count attempts)
                                                vals
@@ -153,7 +154,7 @@
              :Reads-FETCHED-details       (map-value str reads-raw)
              :Reads-CORRECT-details       (map-value str read-correct)
              :Reads-LOST-details          (map-value str read-lost)
-             :Reads-ORDER-PROPERTY        read-queue-property
+             ; :Reads-ORDER-PROPERTY        read-queue-property
              :Reads-OVERLAP               (map-value str reads-overlap)
              ;(util/integer-interval-set-str all-add-fail)
              }))))))
