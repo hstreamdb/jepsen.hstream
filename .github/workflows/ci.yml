@@ -28,7 +28,7 @@ jobs:
 
       - name: Start test cluster & run jepsen test
         run: |
-          docker-compose --file ./docker/docker-compose.yml --compatibility -p jepsen up --build --abort-on-container-exit
+          docker-compose --file ./docker/docker-compose.yml --compatibility -p jepsen up --build --abort-on-container-exit --exit-code-from control
 
       - name: 'Upload Artifact'
         uses: actions/upload-artifact@v2
