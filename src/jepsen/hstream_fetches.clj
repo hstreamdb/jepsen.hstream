@@ -25,7 +25,8 @@
             [jepsen.hstream.checker :as local-checker]
             [jepsen.hstream.mvar :refer :all]
             [clojure.stacktrace :refer [e]]
-            [jepsen.hstream.common-test :as common])
+            [jepsen.hstream.common-test :as common]
+            [jepsen.hstream.nemesis :as local-nemesis])
   (:import [io.hstream HRecord]))
 
 ;;;;;;;;;; Global Variables ;;;;;;;;;;
@@ -144,7 +145,7 @@
             :name    "HStream"
             :db      (common/db "0.6.0")
             :client  (Client. opts test-streams subscription-results futures)
-            :nemesis nemesis/noop
+            :nemesis (local-nemesis/nemesis+)
             :ssh {:dummy? (:dummy opts)}
             :checker (checker/compose
                       {:set (local-checker/set+)
