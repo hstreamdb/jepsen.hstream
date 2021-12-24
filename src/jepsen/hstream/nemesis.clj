@@ -28,6 +28,31 @@
             [jepsen.hstream.mvar :refer :all]
             [clojure.stacktrace :refer [e]]))
 
+(defn kill-node
+  [node]
+  (c/on node (c/exec "killall" "-9" "hstream-server" "&&" "killall" "-9" "hstream-server" "||" "true")))
+
+(defn is-node-dead
+  [node]
+  (let [shell-out (c/on node (c/exec "pgrep" "-x" "hstream-server" "||" "true"))]
+    (empty? shell-out)))
+
+(defn is-node-alive
+  [node]
+  (let [shell-out (c/on node (c/exec "pgrep" "-x" "hstream-server" "||" "true"))]
+    (seq shell-out)))
+
+(defn restart-node
+  [node]
+  (c/on node (c/exec "/bin/start-hstream-server")))
+
+(defn find-alive-nodes
+  [test]
+  (into [] (filter is-node-alive (:nodes test))))
+
+(defn find-dead-nodes
+  [test]
+  (into [] (filter is-node-dead (:nodes test))))
 
 (defn nemesis+ []
   (reify nemesis/Nemesis
@@ -37,32 +62,25 @@
 
     (nemesis/invoke! [this test op]
       (case (:f op)
-        :start (let [node (rand-nth (:nodes test))
-                     _ (info (str "******" node "******"))
-                     shell-out (c/on node (c/exec ["pgrep" "-x" "hstream-server" "||" "true"]))
-                     server-dead (empty? shell-out)
-                     _ (info shell-out)]
-                 (if server-dead
-                   (assoc op :value "already dead")
-                   (do (c/on node (c/exec ["killall" "-9" "hstream-server"]))
-                       (assoc op :value "killed"))))
-        :stop (let [node (rand-nth (:nodes test))
-                    _ (info (str "******" node "******"))
-                    shell-out (c/on node (c/exec ["pgrep" "-x" "hstream-server" "||" "true"]))
-                    server-dead (empty? shell-out)
-                    _ (info shell-out)]
-                (if server-dead
-                  (do (c/on node (c/exec ["hstream-server" "--host" "0.0.0.0"
-                                          "--port" "6570" "--address" "$(hostname -I)"
-                                          "--store-config" "/root/logdevice.conf"
-                                          "--zkuri" "zookeeper:2188"
-                                          "--server-id" "$(shuf -i 1-4294967296 -n 1)"
-                                          "--log-level" "debug"
-                                          "--log-with-color"
-                                          "&"]))
-                      (assoc op :value "restarted"))
-                  (assoc op :value "already up")))
-        ))
+        :start (let [alive-nodes (find-alive-nodes test)
+                     _ (info "****** ALIVE NODES: " (str alive-nodes))]
+                 (if (empty? alive-nodes)
+                   (assoc op :value "no alive nodes")
+                   (let [node (rand-nth alive-nodes)
+                         _ (info (str "******" node "******"))]
+                     (kill-node node)
+                     (assoc op :value "killed"))))
+        :stop (let [dead-nodes (find-dead-nodes test)
+                    _ (info "****** DEAD NODES: " (str dead-nodes))]
+                (if (seq dead-nodes)
+                  (let [node (rand-nth dead-nodes)
+                        _ (info (str "******" node "******"))
+                        _ (info "RESTARTING>>>")
+                        log (restart-node node)
+                        _ (info (str "Logs: " log))]
+                    (assoc op :value "restarted"))
+                  (assoc op :value "no dead nodes"))
+                )))
 
     (nemesis/teardown! [this test]
       )

@@ -10,8 +10,8 @@
                     [client     :as client]
                     [generator  :as gen]
                     [nemesis    :as nemesis]
-                    [tests      :as tests]
-             [util       :refer [timeout]]]
+                    [tests      :as tests]]
+            [slingshot.slingshot :refer [try+]]
 
             [jepsen.hstream.client :refer :all]
             [jepsen.hstream.utils :refer :all]
@@ -21,16 +21,33 @@
   (:import [io.hstream HRecord]))
 
 (defn db
-  "HStream DB for a particular version. Note that the node
-   environment is set by docker-compose so we do not need
-   to do anything here."
-  [version]
+  "HStream DB for a particular version. Here we use the FIRST
+   node to create streams and producers for the whole test."
+  [version streams *producers*]
   (reify db/DB
     (setup! [_ test node]
-      (info node ">>> Setting up DB: HStream" version))
+      (info node ">>> Setting up DB: HStream" version)
+      (when (= node (first (:nodes test)))
+        (let [service-url (str node ":6570")
+              client (get-client service-url)]
+          (dosync
+           (dorun
+            (map #(let [_        (try+ (create-stream   client %)
+                                       (catch Exception e nil))
+                        producer (try+ (create-producer client %)
+                                       (catch Exception e nil))]
+                    (alter *producers* assoc % producer)) streams))))))
 
     (teardown! [_ test node]
-      (info node ">>> Tearing down DB: HStream" version))))
+      (info node ">>> Tearing down DB: HStream" version)
+      ;; SKIP CLEANING STREAMS
+      ;;(when (= node (first (:nodes test)))
+      ;;  (let [service-url (str node ":6570")
+      ;;        client (get-client service-url)]
+      ;;    (dorun
+      ;;     (map #(try+ (delete-stream client %)
+      ;;                 (catch Exception e nil)) streams))))
+      )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -66,7 +83,7 @@
            opts
            {:pure-generators true
             :name    "HStream"
-            :db      (db "0.6.0")
+            :db      (db "0.6.0" [] (ref {}))
             :client  (Client. opts)
             :nemesis nemesis/noop
             :ssh {:dummy? (:dummy opts)}

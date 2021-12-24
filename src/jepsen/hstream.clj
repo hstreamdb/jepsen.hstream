@@ -77,14 +77,6 @@
            (assoc :client client)))))
 
   (setup! [this _]
-    (dosync
-     (dorun
-      (map #(let [_        (try+ (create-stream   (:client this) %)
-                                 (catch Exception e nil))
-                  producer (try+ (create-producer (:client this) %)
-                                 (catch Exception e nil))]
-              (alter test-producers assoc % producer)) test-streams)))
-    (pp/pprint this)
     (info "-------- SETTING UP DONE ---------"))
 
   (invoke! [this _ op]
@@ -119,8 +111,7 @@
        (assoc op :type :fail :error e))))
 
   (teardown! [this _]
-    (try+ (dorun (map #(delete-stream (:client this) %) test-streams))
-          (catch Exception e nil)))
+    )
 
   (close! [this _]
     (try+
@@ -148,7 +139,7 @@
            opts
            {:pure-generators true
             :name    "HStream"
-            :db      (common/db "0.6.0")
+            :db      (common/db "0.6.0" test-streams test-producers)
             :client  (Client. opts test-streams subscription-results futures)
             :nemesis nemesis/noop
             :ssh {:dummy? (:dummy opts)}

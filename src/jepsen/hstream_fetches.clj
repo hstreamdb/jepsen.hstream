@@ -16,7 +16,7 @@
              [util       :refer [timeout]]]
             [jepsen.os.ubuntu   :as ubuntu]
             [jepsen.checker.timeline :as timeline]
-            [slingshot.slingshot :refer [try+]]
+            [slingshot.slingshot :refer [try+ throw+]]
             [knossos.model      :as model]
             [random-string.core :as rs]
 
@@ -71,26 +71,25 @@
            (assoc :client client)))))
 
   (setup! [this _]
-    (dosync
-     (dorun
-      (map #(let [_        (try+ (create-stream   (:client this) %)
-                                 (catch Exception e nil))
-                  producer (try+ (create-producer (:client this) %)
-                                 (catch Exception e nil))]
-              (alter test-producers assoc % producer)) test-streams)))
     (info "-------- SETTING UP DONE ---------"))
 
   (invoke! [this _ op]
     (try+
      (case (:f op)
-       :add (dosync
-             (let [test-data {:key (:value op)}
-                   producer  (get @test-producers (:stream op))
-                   write-future (write-data producer test-data)]
-               (if (:async-write opts)
-                 (alter futures assoc (:client this) write-future)
-                 (.join write-future))
-               (assoc op :type :ok)))
+       :add (let [is-done (agent false)
+                  test-data {:key (:value op)}]
+              (send is-done
+                    (fn [old-agent-value]
+                      (dosync
+                       (let [producer  (get @test-producers (:stream op))
+                             write-future (write-data producer test-data)]
+                         (if (:async-write opts)
+                           (alter futures assoc (:client this) write-future)
+                           (.join write-future))
+                         true))))
+              (if (await-for (* 1000 (:write-timeout opts)) is-done)
+                (assoc op :type :ok)
+                (assoc op :type :fail :error :unknown-timeout)))
        :sub (let [test-subscription-id (str "subscription_" (:stream op))]
               (subscribe (:client this)
                          test-subscription-id
@@ -110,14 +109,13 @@
                        :type :ok
                        :value @subscription-result)))
      (catch java.net.SocketTimeoutException e
-       (assoc op :type :fail :error :timeout))
+       (assoc op :type :fail :error :socket-timeout))
      (catch Exception e
        (warn "---> Err when invoking an operation:" e)
        (assoc op :type :fail :error e))))
 
   (teardown! [this _]
-    (try+ (dorun (map #(delete-stream (:client this) %) test-streams))
-          (catch Exception e nil)))
+    )
 
   (close! [this _]
     (try+
@@ -143,7 +141,7 @@
            opts
            {:pure-generators true
             :name    "HStream"
-            :db      (common/db "0.6.0")
+            :db      (common/db "0.6.0" test-streams test-producers)
             :client  (Client. opts test-streams subscription-results futures)
             :nemesis (local-nemesis/nemesis+)
             :ssh {:dummy? (:dummy opts)}
@@ -166,10 +164,11 @@
                               (range 0 (:fetching-number opts)))
                          (gen/sleep (+ 10 (:fetch-wait-time opts))))
                         ;; nemesis
-                        (->> (->> [(gen/sleep 5)
+                        (->> (->> [(gen/sleep 10)
                                    {:type :info :f :start}
-                                   (gen/sleep 5)
-                                   {:type :info :f :stop}]
+                                   (gen/sleep 10)
+                                   {:type :info :f :stop}
+                                   ]
                                   cycle)
                              (gen/time-limit (+ (:write-time opts)
                                                 (:fetch-wait-time opts))))
@@ -184,6 +183,10 @@
             :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
            ["-w" "--write-time SECOND" "The whole time to write data into database."
             :default  20
+            :parse-fn read-string
+            :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
+           [nil "--write-timeout SECOND" "The max time for a single write operation."
+            :default  10
             :parse-fn read-string
             :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
            ]))
