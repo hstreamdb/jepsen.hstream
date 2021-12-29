@@ -148,12 +148,17 @@
              :Reads-LOST-total            (->> (map-value count read-lost)
                                                vals
                                                (reduce +))
+             :Reads-UNEXPECTED-total     (->> (map-value count read-unexpected)
+                                               vals
+                                               (reduce +))
              :Reads-FETCHED-count         (map-value count reads)
              :Reads-CORRECT-count         (map-value count read-correct)
              :Reads-LOST-count            (map-value count read-lost)
+             :Reads-UNEXPECTED-count      (map-value count read-unexpected)
              :Reads-FETCHED-details       (map-value str reads-raw)
              :Reads-CORRECT-details       (map-value str read-correct)
              :Reads-LOST-details          (map-value str read-lost)
+             :Reads-UNEXPECTED-details    (map-value str read-unexpected)
              ; :Reads-ORDER-PROPERTY        read-queue-property
              :Reads-OVERLAP               (map-value str reads-overlap)
              ;(util/integer-interval-set-str all-add-fail)
