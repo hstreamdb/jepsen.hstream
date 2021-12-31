@@ -38,13 +38,6 @@
    and not too small to avoid name confliction."
   20)
 
-;; Write: Producers & Related Data
-(def test-producers
-  "Producers for clients to write data to a stream. It is a map whose key
-   is the stream name and the value is the producer. The map is initialized
-   during the `setup!` process."
-  (ref {}))
-
 ;; Read: Subscriptions & Related Data
 (def subscription-timeout
   "The timeout of subscriptions in SECOND."
@@ -84,7 +77,7 @@
               (send is-done
                     (fn [old-agent-value]
                       (dosync
-                       (let [producer  (get @test-producers (:stream op))
+                       (let [producer  (create-producer (:client this) (:stream op))
                              write-future (write-data producer test-data)]
                          (if (:async-write opts)
                            (alter futures assoc (:client this) write-future)
@@ -145,7 +138,7 @@
            opts
            {:pure-generators true
             :name    "HStream"
-            :db      (common/db "0.6.0" test-streams test-producers)
+            :db      (common/db "0.6.0" test-streams)
             :client  (Client. opts test-streams subscription-results futures)
             :nemesis (local-nemesis/nemesis+)
             :ssh {:dummy? (:dummy opts)}

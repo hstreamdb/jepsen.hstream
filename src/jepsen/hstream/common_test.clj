@@ -22,8 +22,8 @@
 
 (defn db
   "HStream DB for a particular version. Here we use the FIRST
-   node to create streams and producers for the whole test."
-  [version streams *producers*]
+   node to create streams for the whole test."
+  [version streams]
   (reify db/DB
     (setup! [_ test node]
       (info node ">>> Setting up DB: HStream" version)
@@ -32,11 +32,9 @@
               client (get-client service-url)]
           (dosync
            (dorun
-            (map #(let [_        (try+ (create-stream   client %)
-                                       (catch Exception e nil))
-                        producer (try+ (create-producer client %)
-                                       (catch Exception e nil))]
-                    (alter *producers* assoc % producer)) streams))))))
+            (map #(try+ (create-stream client %)
+                        (catch Exception e nil))
+                 streams))))))
 
     (teardown! [_ test node]
       (info node ">>> Tearing down DB: HStream" version)
