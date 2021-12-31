@@ -62,25 +62,18 @@
 
     (nemesis/invoke! [this test op]
       (case (:f op)
-        :start (let [alive-nodes (find-alive-nodes test)
-                     _ (info "****** ALIVE NODES: " (str alive-nodes))]
-                 (if (empty? alive-nodes)
-                   (assoc op :value "no alive nodes")
-                   (let [node (rand-nth alive-nodes)
-                         _ (info (str "******" node "******"))]
+        :start (let [alive-nodes (find-alive-nodes test)]
+                 (if (<= (count alive-nodes) 1)
+                   (assoc op :value "killing skipped")
+                   (let [node (rand-nth alive-nodes)]
                      (kill-node node)
-                     (assoc op :value "killed"))))
-        :stop (let [dead-nodes (find-dead-nodes test)
-                    _ (info "****** DEAD NODES: " (str dead-nodes))]
-                (if (seq dead-nodes)
-                  (let [node (rand-nth dead-nodes)
-                        _ (info (str "******" node "******"))
-                        _ (info "RESTARTING>>>")
-                        log (restart-node node)
-                        _ (info (str "Logs: " log))]
-                    (assoc op :value "restarted"))
-                  (assoc op :value "no dead nodes"))
-                )))
+                     (assoc op :value "killed" :node node))))
+        :stop (let [dead-nodes (find-dead-nodes test)]
+                (if (empty? dead-nodes)
+                  (assoc op :value "restarting skipped")
+                  (let [node (rand-nth dead-nodes)]
+                    (restart-node node)
+                    (assoc op :value "restarted" :node node))))))
 
     (nemesis/teardown! [this test]
       )
