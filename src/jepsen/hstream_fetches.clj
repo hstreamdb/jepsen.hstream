@@ -63,12 +63,15 @@
 (defrecord Client [opts test-streams subscription-results futures]
   client/Client
 
-  (open! [this _ node]
+  (open! [this test node]
     (dosync
-     (let [service-url      (str node ":6570")
+     (let [target-node (if (local-nemesis/is-node-alive node)
+                         node
+                         (rand-nth (local-nemesis/find-alive-nodes test))) ;; FIXME: Empty list!
+           service-url      (str target-node ":6570")
            client           (get-client service-url)]
        (-> this
-           (assoc :client client)))))
+           (assoc :client client :target-node target-node)))))
 
   (setup! [this _]
     (info "-------- SETTING UP DONE ---------"))
@@ -88,15 +91,15 @@
                            (.join write-future))
                          true))))
               (if (await-for (* 1000 (:write-timeout opts)) is-done)
-                (assoc op :type :ok)
-                (assoc op :type :fail :error :unknown-timeout)))
+                (assoc op :type :ok :target-node (:target-node this))
+                (assoc op :type :fail :error :unknown-timeout :target-node (:target-node this))))
        :sub (let [test-subscription-id (str "subscription_" (:stream op))]
               (subscribe (:client this)
                          test-subscription-id
                          (:stream op)
                          :earliest
                          subscription-timeout)
-              (assoc op :type :ok :sub-id test-subscription-id))
+              (assoc op :type :ok :sub-id test-subscription-id :target-node (:target-node this)))
        :read (let [subscription-result (get subscription-results (:consumer-id op))
                    test-subscription-id (str "subscription_" (:stream op))]
                (try+
@@ -107,12 +110,13 @@
                 (Thread/sleep (* 1000 (:fetch-wait-time opts)))
                 (assoc op
                        :type :ok
-                       :value @subscription-result)))
+                       :value @subscription-result
+                       :target-node (:target-node this))))
      (catch java.net.SocketTimeoutException e
-       (assoc op :type :fail :error :socket-timeout))
+       (assoc op :type :fail :error :socket-timeout :target-node (:target-node this)))
      (catch Exception e
        (warn "---> Err when invoking an operation:" e)
-       (assoc op :type :fail :error e))))
+       (assoc op :type :fail :error e :target-node (:target-node this)))))
 
   (teardown! [this _]
     )
