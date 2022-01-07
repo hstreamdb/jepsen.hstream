@@ -8,5 +8,5 @@ CMD dos2unix /init-ssh.sh && \
     eval `ssh-agent` && \
     ssh-add /root/.ssh/id_rsa && \
     cd /home/Work && \
-    lein run test --ssh-private-key "/root/.ssh/id_rsa" --dummy false --rate 100 --write-time 120 --fetch-wait-time 240 --concurrency 100 --fetching-number 100 --max-streams 10 && \
+    lein run test --ssh-private-key "/root/.ssh/id_rsa" --dummy false --rate 100 --write-time 180 --fetch-wait-time 180 --concurrency 100 --fetching-number 100 --max-streams 10 --write-timeout 60 --nemesis-interval 15 && \
     exit
