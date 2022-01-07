@@ -82,7 +82,7 @@
                                (dosync (alter futures assoc (:client this) write-future))
                                (.join write-future))
                              {:status :done :details nil})
-                           (catch Exception e {:status :error :details e}))))
+                           (catch Exception e {:status :error :details (str e)}))))
               (if (await-for (* 1000 (:write-timeout opts)) is-done)
                 (let [done-result @is-done]
                   (case (:status done-result)
@@ -112,7 +112,7 @@
        (assoc op :type :fail :error :socket-timeout :target-node (:target-node this)))
      (catch Exception e
        (warn "---> Err when invoking an operation:" e)
-       (assoc op :type :fail :error e :target-node (:target-node this)))))
+       (assoc op :type :fail :error (str e) :target-node (:target-node this)))))
 
   (teardown! [this _]
     )
@@ -152,6 +152,7 @@
                        :rate (checker/rate-graph)
                        :clock (checker/clock-plot)
                        :exceptions (checker/unhandled-exceptions)
+                       :timeline (timeline/html)
                        })
             :generator (gen/clients
                         ;; clients
