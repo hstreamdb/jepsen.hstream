@@ -57,14 +57,13 @@
   client/Client
 
   (open! [this test node]
-    (dosync
-     (let [target-node (if (local-nemesis/is-node-alive node)
-                         node
-                         (rand-nth (local-nemesis/find-alive-nodes test))) ;; FIXME: Empty list!
-           service-url      (str target-node ":6570")
-           client           (get-client service-url)]
-       (-> this
-           (assoc :client client :target-node target-node)))))
+    (let [target-node (if (local-nemesis/is-node-alive node)
+                        node
+                        (rand-nth (local-nemesis/find-alive-nodes test))) ;; FIXME: Empty list!
+          service-url (str target-node ":6570")
+          client      (try+ (get-client service-url) (catch Exception e (warn e)))]
+      (-> this
+          (assoc :client client :target-node target-node))))
 
   (setup! [this _]
     (info "-------- SETTING UP DONE ---------"))
@@ -74,15 +73,14 @@
      (case (:f op)
        :add (let [is-done (agent false)
                   test-data {:key (:value op)}]
-              (send is-done
-                    (fn [old-agent-value]
-                      (dosync
-                       (let [producer  (create-producer (:client this) (:stream op))
-                             write-future (write-data producer test-data)]
-                         (if (:async-write opts)
-                           (alter futures assoc (:client this) write-future)
-                           (.join write-future))
-                         true))))
+              (send-off is-done
+                        (fn [_]
+                          (let [producer     (create-producer (:client this) (:stream op))
+                                write-future (write-data producer test-data)]
+                            (if (:async-write opts)
+                              (dosync (alter futures assoc (:client this) write-future))
+                              (.join write-future))
+                            true)))
               (if (await-for (* 1000 (:write-timeout opts)) is-done)
                 (assoc op :type :ok :target-node (:target-node this))
                 (assoc op :type :fail :error :unknown-timeout :target-node (:target-node this))))
@@ -93,18 +91,18 @@
                          :earliest
                          subscription-timeout)
               (assoc op :type :ok :sub-id test-subscription-id :target-node (:target-node this)))
-       :read (let [subscription-result (get subscription-results (:consumer-id op))
+       :read (let [is-done              (agent false)
+                   subscription-result  (get subscription-results (:consumer-id op))
                    test-subscription-id (str "subscription_" (:stream op))]
-               (try+
-                (consume (:client this)
-                         test-subscription-id
-                         (gen-collect-value-callback subscription-result))
-                (catch Exception e nil))
-                (Thread/sleep (* 1000 (:fetch-wait-time opts)))
-                (assoc op
-                       :type :ok
-                       :value @subscription-result
-                       :target-node (:target-node this))))
+               (consume (:client this)
+                        test-subscription-id
+                        (gen-collect-value-callback subscription-result))
+               (send-off is-done (fn [_]
+                                   (Thread/sleep (* 1000 (:fetch-wait-time opts)))
+                                   true))
+               (await is-done)
+               (assoc op :type :ok :value @subscription-result :target-node (:target-node this))
+               ))
      (catch java.net.SocketTimeoutException e
        (assoc op :type :fail :error :socket-timeout :target-node (:target-node this)))
      (catch Exception e
@@ -161,12 +159,10 @@
                               (range 0 (:fetching-number opts)))
                          (gen/sleep (+ 10 (:fetch-wait-time opts))))
                         ;; nemesis
-                        (->> (->> [(gen/sleep 10)
-                                   {:type :info :f :start}
-                                   (gen/sleep 10)
-                                   {:type :info :f :stop}
-                                   ]
-                                  cycle)
+                        (->> (gen/phases (gen/sleep 10)
+                                         (gen/mix [(repeat {:type :info :f :start})
+                                                   (repeat {:type :info :f :stop})]))
+                             (gen/stagger (:nemesis-interval opts))
                              (gen/time-limit (+ (:write-time opts)
                                                 (:fetch-wait-time opts))))
                         )})))
@@ -184,6 +180,10 @@
             :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
            [nil "--write-timeout SECOND" "The max time for a single write operation."
             :default  10
+            :parse-fn read-string
+            :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
+           [nil "--nemesis-interval SECOND" "The interval between two nemesis operations."
+            :default  15
             :parse-fn read-string
             :validate [#(and (number? %) (pos? %)) "Must be a positive number"]]
            ]))
