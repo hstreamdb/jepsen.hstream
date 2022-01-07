@@ -71,18 +71,23 @@
   (invoke! [this _ op]
     (try+
      (case (:f op)
-       :add (let [is-done (agent false)
+       :add (let [is-done (agent nil)
                   test-data {:key (:value op)}]
               (send-off is-done
                         (fn [_]
-                          (let [producer     (create-producer (:client this) (:stream op))
-                                write-future (write-data producer test-data)]
-                            (if (:async-write opts)
-                              (dosync (alter futures assoc (:client this) write-future))
-                              (.join write-future))
-                            true)))
+                          (try+
+                           (let [producer     (create-producer (:client this) (:stream op))
+                                 write-future (write-data producer test-data)]
+                             (if (:async-write opts)
+                               (dosync (alter futures assoc (:client this) write-future))
+                               (.join write-future))
+                             {:status :done :details nil})
+                           (catch Exception e {:status :error :details e}))))
               (if (await-for (* 1000 (:write-timeout opts)) is-done)
-                (assoc op :type :ok :target-node (:target-node this))
+                (let [done-result @is-done]
+                  (case (:status done-result)
+                    :done  (assoc op :type :ok :target-node (:target-node this))
+                    :error (assoc op :type :fail :error (:details done-result) :target-node (:target-node this))))
                 (assoc op :type :fail :error :unknown-timeout :target-node (:target-node this))))
        :sub (let [test-subscription-id (str "subscription_" (:stream op))]
               (subscribe (:client this)
