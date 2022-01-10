@@ -68,46 +68,58 @@
   (setup! [this _]
     (info "-------- SETTING UP DONE ---------"))
 
-  (invoke! [this _ op]
+  (invoke! [this test op]
     (try+
-     (case (:f op)
-       :add (let [is-done (agent nil)
-                  test-data {:key (:value op)}]
-              (send-off is-done
-                        (fn [_]
-                          (try+
-                           (let [producer     (create-producer (:client this) (:stream op))
-                                 write-future (write-data producer test-data)]
-                             (if (:async-write opts)
-                               (dosync (alter futures assoc (:client this) write-future))
-                               (.join write-future))
-                             {:status :done :details nil})
-                           (catch Exception e {:status :error :details (str e)}))))
-              (if (await-for (* 1000 (:write-timeout opts)) is-done)
-                (let [done-result @is-done]
-                  (case (:status done-result)
-                    :done  (assoc op :type :ok :target-node (:target-node this))
-                    :error (assoc op :type :fail :error (:details done-result) :target-node (:target-node this))))
-                (assoc op :type :fail :error :unknown-timeout :target-node (:target-node this))))
-       :sub (let [test-subscription-id (str "subscription_" (:stream op))]
-              (subscribe (:client this)
-                         test-subscription-id
-                         (:stream op)
-                         :earliest
-                         subscription-timeout)
-              (assoc op :type :ok :sub-id test-subscription-id :target-node (:target-node this)))
-       :read (let [is-done              (agent false)
-                   subscription-result  (get subscription-results (:consumer-id op))
-                   test-subscription-id (str "subscription_" (:stream op))]
-               (consume (:client this)
-                        test-subscription-id
-                        (gen-collect-value-callback subscription-result))
-               (send-off is-done (fn [_]
-                                   (Thread/sleep (* 1000 (:fetch-wait-time opts)))
-                                   true))
-               (await is-done)
-               (assoc op :type :ok :value @subscription-result :target-node (:target-node this))
-               ))
+     (let [is-target-node-ok (local-nemesis/is-node-alive (:target-node this))
+           real-target-node (if is-target-node-ok
+                              (:target-node this)
+                              (rand-nth (local-nemesis/find-alive-nodes test)))
+           real-client (if is-target-node-ok
+                         (:client this)
+                         (get-client (str real-target-node ":6570")))
+           this (-> this
+                    (assoc :target-node real-target-node
+                           :client real-client))]
+       (case (:f op)
+         :add (let [is-done (agent nil)
+                    test-data {:key (:value op)}]
+                (send-off is-done
+                          (fn [_]
+                            (try+
+                             (let [producer     (create-producer (:client this) (:stream op))
+                                   write-future (write-data producer test-data)]
+                               (if (:async-write opts)
+                                 (dosync (alter futures assoc (:client this) write-future))
+                                 (.join write-future))
+                               {:status :done :details nil})
+                             (catch Exception e {:status :error :details (str e)}))))
+                (if (await-for (* 1000 (:write-timeout opts)) is-done)
+                  (let [done-result @is-done]
+                    (case (:status done-result)
+                      :done  (assoc op :type :ok :target-node (:target-node this))
+                      :error (assoc op :type :fail :error (:details done-result) :target-node (:target-node this))))
+                  (assoc op :type :fail :error :unknown-timeout :target-node (:target-node this))))
+         :sub (let [test-subscription-id (str "subscription_" (:stream op))]
+                (subscribe (:client this)
+                           test-subscription-id
+                           (:stream op)
+                           :earliest
+                           subscription-timeout)
+                (assoc op :type :ok :sub-id test-subscription-id :target-node (:target-node this)))
+         :read (let [is-done              (agent false)
+                     subscription-result  (get subscription-results (:consumer-id op))
+                     test-subscription-id (str "subscription_" (:stream op))]
+                 (consume (:client this)
+                          test-subscription-id
+                          (gen-collect-value-callback subscription-result))
+                 (send-off is-done (fn [_]
+                                     (Thread/sleep (* 1000 (:fetch-wait-time opts)))
+                                     true))
+                 (await is-done)
+                 (assoc op :type :ok :value @subscription-result :target-node (:target-node this))
+                 ))
+       )
+
      (catch java.net.SocketTimeoutException e
        (assoc op :type :fail :error :socket-timeout :target-node (:target-node this)))
      (catch Exception e
