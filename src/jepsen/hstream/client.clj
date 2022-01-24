@@ -3,7 +3,6 @@
   (:require [clojure.string     :as str]
             [clojure.core.reducers :as reducers]
             [clojure.tools.logging :refer :all]
-            [slingshot.slingshot :refer [try+]]
             [jepsen.hstream.utils :refer :all])
   (:import [io.hstream HStreamClient HStreamClientBuilder ProducerBuilder HRecord HRecordBuilder
                        Subscription SubscriptionOffset SubscriptionOffset$SpecialOffset RecordId
@@ -15,6 +14,14 @@
   (.build
    (HStreamClientBuilder/.serviceUrl (HStreamClient/builder) url)))
 
+(defn get-client-until-ok [url]
+  (try
+    (get-client url)
+    (catch Exception e
+      (do
+        (Thread/sleep 1000)
+        (get-client-until-ok url)))))
+
 (defn create-stream [client stream-name]
   (HStreamClient/.createStream client stream-name))
 
@@ -22,7 +29,7 @@
   (map #(Stream/.getStreamName %) (.listStreams client)))
 
 (defn delete-stream [client stream-name]
-  (try+
+  (try
    (HStreamClient/.deleteStream client stream-name)
    (catch Exception e nil)))
 
