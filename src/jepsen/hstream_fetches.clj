@@ -16,7 +16,6 @@
              [util       :refer [timeout]]]
             [jepsen.os.ubuntu   :as ubuntu]
             [jepsen.checker.timeline :as timeline]
-            [slingshot.slingshot :refer [try+ throw+]]
             [knossos.model      :as model]
             [random-string.core :as rs]
 
@@ -61,7 +60,7 @@
                         node
                         (rand-nth (local-nemesis/find-alive-nodes test))) ;; FIXME: Empty list!
           service-url (str target-node ":6570")
-          client      (try+ (get-client service-url) (catch Exception e (warn e)))]
+          client      (get-client-until-ok service-url)]
       (-> this
           (assoc :client client :target-node target-node))))
 
@@ -69,27 +68,36 @@
     (info "-------- SETTING UP DONE ---------"))
 
   (invoke! [this test op]
-    (try+
+    (try
      (case (:f op)
        :add (let [is-done   (agent nil)
-                  test-data {:key (:value op)}]
+                  test-data {:key (:value op)}
+                  producer  (create-producer (:client this) (:stream op))]
               (send-off is-done
                         (fn [_]
-                          (try+
-                           (let [producer     (create-producer (:client this) (:stream op))
-                                 write-future (write-data producer test-data)]
+                          (try
+                           (let [write-future (write-data producer test-data)]
                              (if (:async-write opts)
                                (dosync (alter futures assoc (:client this) write-future))
                                (.join write-future))
                              {:status :done :details nil})
-                           (catch io.grpc.StatusException e {:status :retry :exception e})
-                           (catch Exception e {:status :error :details (str "add send-off exception|" e)})
+                           (catch java.util.concurrent.CompletionException e
+                             (if (= (-> (Throwable->map e)
+                                        :via
+                                        second
+                                        :type)
+                                    (-> io.hstream.HStreamDBClientException
+                                        .getName
+                                        symbol))
+                               {:status :retry :exception e}
+                               {:status :error :details (Throwable->map e)}))
+                           (catch Exception e {:status :error :details (Throwable->map e)})
                            )))
               (if (await-for (* 1000 (:write-timeout opts)) is-done)
                 (let [done-result @is-done]
                   (case (:status done-result)
                     :done  (assoc op :type :ok :target-node (:target-node this))
-                    :error (assoc op :type :fail :error (:details done-result) :target-node (:target-node this))
+                    :error (assoc op :type :fail :error (:details done-result) :target-node (:target-node this) :extra "happened in send-off")
                     :retry (throw (:exception done-result))
                     ))
                 (assoc op :type :fail :error :unknown-timeout :target-node (:target-node this))))
@@ -112,24 +120,33 @@
                (await is-done)
                (assoc op :type :ok :value @subscription-result :target-node (:target-node this))
                ))
-     (catch io.grpc.StatusException e (let [new-target-node (rand-nth (local-nemesis/find-alive-nodes test))
-                                            new-client      (get-client (str new-target-node ":6570"))
-                                            new-this (-> this
-                                                         (assoc :target-node new-target-node
-                                                                :client new-client))]
-                                    (Thread/sleep 1000)
-                                    (client/invoke! new-this test op)))
+     (catch java.util.concurrent.CompletionException e
+       (if (= (-> (Throwable->map e)
+                  :via
+                  second
+                  :type)
+              (-> io.hstream.HStreamDBClientException
+                  .getName
+                  symbol))
+         (let [new-target-node (rand-nth (local-nemesis/find-alive-nodes test))
+               new-client      (get-client-until-ok (str new-target-node ":6570"))
+               new-this        (-> this
+                                   (assoc :target-node new-target-node
+                                          :client new-client))]
+           (Thread/sleep 1000)
+           (info "RRRRRRRRRRRRRRRRRRRetry!")
+           (client/invoke! new-this test (assoc op :retry? true)))
+         (assoc op :type :fail :error (Throwable->map e) :target-node (:target-node this) :extra "happened in op")))
      (catch java.net.SocketTimeoutException e
        (assoc op :type :fail :error :socket-timeout :target-node (:target-node this)))
      (catch Exception e
-       (warn "---> Err when invoking an operation:" e)
-       (assoc op :type :fail :error (str "op exception|" e) :target-node (:target-node this)))))
+       (assoc op :type :fail :error (Throwable->map e) :target-node (:target-node this) :extra "happened in op"))))
 
   (teardown! [this _]
     )
 
   (close! [this _]
-    (try+
+    (try
      (dosync (println ">>> Closing client...")
              (let [write-future (get @futures (:client this))]
                (when (not (nil? write-future))

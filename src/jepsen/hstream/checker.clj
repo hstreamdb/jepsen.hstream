@@ -33,11 +33,26 @@
                           (group-by :stream)
                           (map-value #(into [] (map :value %))))
             ;; {stream [value]}
+            attempt-retries (->> history
+                                 (r/filter op/invoke?)
+                                 (r/filter #(= :add (:f %)))
+                                 (r/filter #(= true (:retry? %)))
+                                 (group-by :stream)
+                                 (map-value #(into [] (map :value %))))
+            ;; {stream [value]}
             adds (->> history
                       (r/filter op/ok?)
                       (r/filter #(= :add (:f %)))
                       (group-by :stream)
                       (map-value #(into [] (map :value %))))
+            ;; {stream [value]}
+            add-retries (->> history
+                             (r/filter op/ok?)
+                             (r/filter #(= :add (:f %)))
+                             (r/filter #(= true (:retry? %)))
+                             (group-by :stream)
+                             (map-value #(into [] (map :value %))))
+
             ;; {stream [[value]]}
             reads-raw (->> history
                        (r/filter op/ok?)
@@ -131,12 +146,22 @@
              :Adds-FAILED-total           (->> (map-value count add-fail)
                                                vals
                                                (reduce +))
+             :Adds-RETRIED-total          (->> (map-value count attempt-retries)
+                                               vals
+                                               (reduce +))
+             :Adds-RETRIED-SUCCEEDED-total (->> (map-value count add-retries)
+                                                vals
+                                                (reduce +))
              :Adds-ATTEMPED-count         (map-value count attempts)
              :Adds-SUCCEEDED-count        (map-value count adds)
              :Adds-FAILED-count           (map-value count add-fail)
+             :Adds-RETRIED-count          (map-value count attempt-retries)
+             :Adds-RETRIED-SUCCEEDED-count (map-value count add-retries)
              :Adds-ATTEMPED-details       (map str attempts)
              :Adds-SUCCEEDED-details      (map str adds)
              :Adds-FAILED-details         (map str add-fail)
+             :Adds-RETRIED-details        (map str attempt-retries)
+             :Adds-RETRIED-SUCCEEDED-details (map str add-retries)
              ;; ----------------- Reads -----------------
              :Reads-STREAMS               read-streams
              :Reads-FETCHED-total         (->> (map-value count reads)
