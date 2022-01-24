@@ -17,7 +17,6 @@
              [util       :refer [timeout]]]
             [jepsen.os.ubuntu   :as ubuntu]
             [jepsen.checker.timeline :as timeline]
-            [slingshot.slingshot :refer [try+]]
             [knossos.model      :as model]
             [random-string.core :as rs]
             [jepsen.control.docker :as docker]
