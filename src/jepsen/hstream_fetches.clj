@@ -215,13 +215,21 @@
        :generator
          (gen/clients
            ;; clients
-           (gen/phases (map gen-sub test-streams)
-                       (->> (gen-adds test-streams)
-                            (gen/stagger (/ (:rate opts)))
-                            (gen/time-limit (:write-time opts)))
-                       (map #(gen-read (rand-nth test-streams) %)
-                         (range 0 (:fetching-number opts)))
-                       (gen/sleep (+ 10 (:fetch-wait-time opts))))
+           (gen/phases
+             ;; 1. subscribe all streams
+             (map gen-sub test-streams)
+             ;; 2. randomly write to the streams
+             (->> (gen-adds test-streams)
+                  (gen/stagger (/ (:rate opts)))
+                  (gen/time-limit (:write-time opts)))
+             ;; 3. read
+             ;; 3.1. ensure every stream is read
+             (map #(gen-read (get test-streams %) %)
+               (range 0 (count test-streams)))
+             ;; 3.2. randomly distribute the left read times
+             (map #(gen-read (rand-nth test-streams) %)
+               (range (count test-streams) (:fetching-number opts)))
+             (gen/sleep (+ 10 (:fetch-wait-time opts))))
            ;; nemesis
            (if (:nemesis-on opts)
              (->> (gen/phases (gen/sleep 10)
@@ -236,7 +244,9 @@
   "Additional command line options."
   (concat
     common/cli-opts
-    [[nil "--fetching-number INT" "The number of fetching operations in total."
+    [[nil "--fetching-number INT"
+      "The number of fetching operations in total.
+      WARNING: its value must be greater than `--max-streams`"
       :default 10 :parse-fn read-string :validate
       [#(and (number? %) (pos? %)) "Must be a positive number"]]
      ["-w" "--write-time SECOND" "The whole time to write data into database."
