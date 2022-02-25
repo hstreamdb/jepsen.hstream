@@ -87,7 +87,6 @@
                 (try+ (subscribe (:client this)
                                  test-subscription-id
                                  (:stream op)
-                                 :earliest
                                  subscription-timeout)
                       (catch Exception e nil))
                 (consume (:client this)

@@ -75,24 +75,34 @@
               (send-off
                 is-done
                 (fn [_]
-                  (try (let [write-future (write-data producer test-data)]
-                         (if (:async-write opts)
-                           (dosync
-                             (alter futures assoc (:client this) write-future))
-                           (.join write-future))
-                         {:status :done, :details nil})
-                       (catch java.util.concurrent.CompletionException e
-                         (if (= (-> (Throwable->map e)
-                                    :via
-                                    second
-                                    :type)
-                                (-> io.hstream.HStreamDBClientException
-                                    .getName
-                                    symbol))
-                           {:status :retry, :exception e}
-                           {:status :error, :details (Throwable->map e)}))
-                       (catch Exception e
-                         {:status :error, :details (Throwable->map e)}))))
+                  (try
+                    (let [write-future
+                            (if (zero? (:max-partitions opts))
+                              (write-data producer test-data)
+                              (write-data
+                                producer
+                                test-data
+                                ;; orderingKey
+                                (str (mod (+ (:value op)
+                                             (rand-int (:max-partitions opts)))
+                                          (:max-partitions opts)))))]
+                      (if (:async-write opts)
+                        (dosync
+                          (alter futures assoc (:client this) write-future))
+                        (.join write-future))
+                      {:status :done, :details nil})
+                    (catch java.util.concurrent.CompletionException e
+                      (if (= (-> (Throwable->map e)
+                                 :via
+                                 second
+                                 :type)
+                             (-> io.hstream.HStreamDBClientException
+                                 .getName
+                                 symbol))
+                        {:status :retry, :exception e}
+                        {:status :error, :details (Throwable->map e)}))
+                    (catch Exception e
+                      {:status :error, :details (Throwable->map e)}))))
               (if (await-for (* 1000 (:write-timeout opts)) is-done)
                 (let [done-result @is-done]
                   (case (:status done-result)
@@ -113,7 +123,6 @@
                  (subscribe (:client this)
                             test-subscription-id
                             (:stream op)
-                            :earliest
                             subscription-timeout)
                  (assoc op
                    :type :ok
@@ -192,7 +201,7 @@
       opts
       {:pure-generators true,
        :name "HStream",
-       :db (common/db "0.6.0" test-streams),
+       :db (common/db "0.7.0" test-streams),
        :client (Client. opts test-streams subscription-results futures),
        :nemesis (local-nemesis/nemesis+),
        :ssh {:dummy? (:dummy opts)},
@@ -203,23 +212,25 @@
                                   :clock (checker/clock-plot),
                                   :exceptions (checker/unhandled-exceptions),
                                   :timeline (timeline/html)}),
-       :generator (gen/clients
-                    ;; clients
-                    (gen/phases (map gen-sub test-streams)
-                                (->> (gen-adds test-streams)
-                                     (gen/stagger (/ (:rate opts)))
-                                     (gen/time-limit (:write-time opts)))
-                                (map #(gen-read (rand-nth test-streams) %)
-                                  (range 0 (:fetching-number opts)))
-                                (gen/sleep (+ 10 (:fetch-wait-time opts))))
-                    ;; nemesis
-                    (->> (gen/phases (gen/sleep 10)
-                                     (gen/mix [(repeat {:type :info, :f :start})
-                                               (repeat {:type :info,
-                                                        :f :stop})]))
-                         (gen/stagger (:nemesis-interval opts))
-                         (gen/time-limit (+ (:write-time opts)
-                                            (:fetch-wait-time opts)))))})))
+       :generator
+         (gen/clients
+           ;; clients
+           (gen/phases (map gen-sub test-streams)
+                       (->> (gen-adds test-streams)
+                            (gen/stagger (/ (:rate opts)))
+                            (gen/time-limit (:write-time opts)))
+                       (map #(gen-read (rand-nth test-streams) %)
+                         (range 0 (:fetching-number opts)))
+                       (gen/sleep (+ 10 (:fetch-wait-time opts))))
+           ;; nemesis
+           (if (:nemesis-on opts)
+             (->> (gen/phases (gen/sleep 10)
+                              (gen/mix [(repeat {:type :info, :f :start})
+                                        (repeat {:type :info, :f :stop})]))
+                  (gen/stagger (:nemesis-interval opts))
+                  (gen/time-limit (+ (:write-time opts)
+                                     (:fetch-wait-time opts))))
+             (gen/sleep (+ (:write-time opts) (:fetch-wait-time opts)))))})))
 
 (def cli-opts
   "Additional command line options."
@@ -234,6 +245,13 @@
      [nil "--write-timeout SECOND" "The max time for a single write operation."
       :default 10 :parse-fn read-string :validate
       [#(and (number? %) (pos? %)) "Must be a positive number"]]
+     [nil "--max-partitions INT"
+      "The maximum number of partitions(ordering keys). 0 means use default key only"
+      :default 0 :parse-fn read-string :validate
+      [#(and (number? %) (>= % 0)) "Must be a non-negative number"]]
+     [nil "--nemesis-on [true|false]" "Whether to turn on the nemesis" :default
+      true :parse-fn read-string :validate
+      [#(boolean? %) "Must be a boolean value"]]
      [nil "--nemesis-interval SECOND"
       "The interval between two nemesis operations." :default 15 :parse-fn
       read-string :validate

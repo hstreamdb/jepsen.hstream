@@ -72,7 +72,7 @@
          opts
          {:pure-generators true,
           :name "HStream",
-          :db (db "0.6.0" [] (ref {})),
+          :db (db "0.6.0" []),
           :client (Client. opts),
           :nemesis nemesis/noop,
           :ssh {:dummy? (:dummy opts)}}))

@@ -13,4 +13,4 @@
   :dependencies [[org.clojure/clojure "1.10.3"]
                  [jepsen "0.2.5"]
                  [random-string "0.1.0"]
-                 [io.hstream/hstreamdb-java "0.6.2-SNAPSHOT" :exclusions [org.apache.logging.log4j/log4j-slf4j-impl]]])
+                 [io.hstream/hstreamdb-java "0.7.1-SNAPSHOT" :exclusions [org.apache.logging.log4j/log4j-slf4j-impl]]])

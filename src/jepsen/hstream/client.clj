@@ -5,9 +5,8 @@
             [clojure.tools.logging :refer :all]
             [jepsen.hstream.utils :refer :all])
   (:import [io.hstream HStreamClient HStreamClientBuilder ProducerBuilder
-            HRecord HRecordBuilder Subscription SubscriptionOffset
-            SubscriptionOffset$SpecialOffset RecordId HRecordReceiver
-            ReceivedHRecord Responder Stream]
+            HRecord HRecordBuilder Subscription RecordId HRecordReceiver
+            ReceivedHRecord Responder Stream Record]
            [io.hstream.impl HStreamClientBuilderImpl]
            [java.util.concurrent TimeUnit]))
 
@@ -43,33 +42,35 @@
   (.build (ProducerBuilder/.stream (HStreamClient/.newProducer client)
                                    stream-name)))
 
+(defn map-to-hrecord
+  "data-to-write is a map: {key1 value1 key2 value2 ...}
+   returns: HRecord"
+  [data-to-write]
+  (let [hrecord-builder (HRecord/newBuilder)
+        reducef (fn [acc k v] (HRecordBuilder/.put acc (str k) (str v)))
+        final-builder (reducers/reduce reducef hrecord-builder data-to-write)]
+    (.build final-builder)))
+
 (defn write-data
-  [producer data-to-write]
   "data-to-write is a map: {key1 value1 key2 value2 ...}
   returns: record-id"
-  (let [builder (HRecord/newBuilder)
-        reducef (fn [acc k v] (HRecordBuilder/.put acc (str k) (str v)))
-        final-builder (reducers/reduce reducef builder data-to-write)
-        hrecord (.build final-builder)]
-    (.write producer hrecord)))
+  ([producer data-to-write]
+   (let [hrecord (map-to-hrecord data-to-write)
+         record (.build (.hRecord (Record/newBuilder) hrecord))]
+     (.write producer record)))
+  ([producer data-to-write key]
+   (let [hrecord (map-to-hrecord data-to-write)
+         record (.build (.hRecord (.orderingKey (Record/newBuilder) key)
+                                  hrecord))]
+     (.write producer record))))
 
 (defn subscribe
-  [client sub-id stream offset timeout]
-  "offset can be one of :latest :earliest and {:batch-id n1 :batch-index n2}"
-  (let [real-offset (case offset
-                      :earliest (SubscriptionOffset.
-                                  (SubscriptionOffset$SpecialOffset/EARLIEST))
-                      :latest (SubscriptionOffset.
-                                (SubscriptionOffset$SpecialOffset/LATEST))
-                      :else (RecordId. (:batch-id offset)
-                                       (:batch-index offset)))
-        subscription
-          (.build
-            (.ackTimeoutSeconds
-              (.offset (.stream (.subscription (Subscription/newBuilder) sub-id)
-                                stream)
-                       real-offset)
-              timeout))]
+  [client sub-id stream timeout]
+  (let [subscription (.build (.ackTimeoutSeconds
+                               (.stream (.subscription (Subscription/newBuilder)
+                                                       sub-id)
+                                        stream)
+                               timeout))]
     (.createSubscription client subscription)))
 
 (defn unsubscribe [client sub-id] (.deleteSubscription client sub-id))
