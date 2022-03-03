@@ -11,6 +11,6 @@
   ;                       :repo-manager true}}
   :repositories [["sonatype-snapshot" "https://s01.oss.sonatype.org/content/repositories/snapshots"]]
   :dependencies [[org.clojure/clojure "1.10.3"]
-                 [jepsen "0.2.5"]
+                 [jepsen "0.2.6"]
                  [random-string "0.1.0"]
                  [io.hstream/hstreamdb-java "0.7.1-SNAPSHOT" :exclusions [org.apache.logging.log4j/log4j-slf4j-impl]]])
