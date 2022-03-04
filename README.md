@@ -12,14 +12,13 @@ It currently contains the following tests:
 
 ## Usage
 
-- Use the [script](https://github.com/hstreamdb/jepsen-start-cluster) to bootstrap the test cluster and mount this project to it.
-- Go to the project folder in the jepsen console and run
-
 ```
-lein run test
+docker-compose --file ./docker/docker-compose.yml --compatibility -p jepsen build
+
+docker-compose --file ./docker/docker-compose.yml --compatibility -p jepsen up --renew-anon-volumes --exit-code-from control
 ```
 
-**Note:** For users in Chinese mainland, you can uncomment the following lines in the `project.clj` file to accelerate package retrieving:
+**Note:** For users in the Chinese mainland, you can uncomment the following lines in the `project.clj` file to accelerate package retrieving:
 
 ```
   ; :mirrors {#"clojars" {:name "clojars-ustc"
@@ -29,3 +28,9 @@ lein run test
   ;                       :url "https://maven.aliyun.com/repository/public"
   ;                       :repo-manager true}}
 ```
+
+and add `--build-arg USE_CHINA_MIRROR=true` when building docker images.
+
+## Customization
+
+In `docker/control/Dockerfile`.
