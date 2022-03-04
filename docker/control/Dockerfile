@@ -1,12 +1,30 @@
-FROM ghcr.io/hstreamdb/jepsen_control:0.1.0
+FROM debian:bullseye
 
-ADD ./init.sh /init-ssh.sh
+ARG USE_CHINA_MIRROR
+# MIRROR
+RUN if [ "$USE_CHINA_MIRROR" = true ] ; then sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && sed -i 's|security.debian.org/debian-security|mirrors.ustc.edu.cn/debian-security|g' /etc/apt/sources.list ; fi
 
-CMD dos2unix /init-ssh.sh && \
-    chmod +x /init-ssh.sh && \
-    /init-ssh.sh && \
+# Jepsen dependencies
+RUN apt-get -y -q update && \
+    apt-get install -qy openjdk-11-jdk-headless \
+    libjna-java \
+    git \
+    openssh-client \
+    curl \
+    wget \
+    dos2unix \
+    gnuplot \
+    zookeeper \
+    leiningen
+
+ADD ./bashrc /root/.bashrc
+ADD ./init-ssh-control.sh /init-ssh.sh
+RUN dos2unix /init-ssh.sh /root/.bashrc \
+    && chmod +x /init-ssh.sh
+
+CMD /init-ssh.sh && \
     eval `ssh-agent` && \
     ssh-add /root/.ssh/id_rsa && \
     cd /home/Work && \
-    lein run test --ssh-private-key "/root/.ssh/id_rsa" --dummy false --rate 100 --write-time 180 --fetch-wait-time 180 --concurrency 100 --fetching-number 100 --max-streams 10 --write-timeout 60 --nemesis-interval 15 --nemesis-on false --max-partitions 10 && \
+    lein run test --ssh-private-key "/root/.ssh/id_rsa" --dummy false --rate 100 --write-time 120 --fetch-wait-time 120 --concurrency 100 --fetching-number 100 --max-streams 10 --write-timeout 60 --nemesis-interval 15 --nemesis-on false --max-partitions 10 && \
     exit
