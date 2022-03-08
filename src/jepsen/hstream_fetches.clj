@@ -135,20 +135,28 @@
                 :value @subscription-result
                 :target-node (:target-node this))))
         (catch java.util.concurrent.CompletionException e
-          (if (is-hstream-client-unavailable-exception? e)
-            (let [new-target-node (rand-nth (local-nemesis/find-alive-nodes
-                                              test))
-                  new-client (get-client-until-ok (str new-target-node ":6570"))
-                  new-this (-> this
-                               (assoc :target-node new-target-node
-                                      :client new-client))]
-              (Thread/sleep 1000)
-              (client/invoke! new-this test (assoc op :retry? true)))
-            (assoc op
-              :type :fail
-              :error (Throwable->map e)
-              :target-node (:target-node this)
-              :extra "happened in op")))
+          (let [old-op-retry-times
+                  (if (nil? (:retry-times op)) 0 (:retry-times op))]
+            (if (and (is-hstream-client-unavailable-exception? e)
+                     (< old-op-retry-times (:max-retry-times opts)))
+              (let [new-target-node (rand-nth (local-nemesis/find-alive-nodes
+                                                test))
+                    new-client (get-client-until-ok (str new-target-node
+                                                         ":6570"))
+                    new-this (-> this
+                                 (assoc :target-node new-target-node
+                                        :client new-client))]
+                (Thread/sleep 1000)
+                (client/invoke! new-this
+                                test
+                                (assoc op
+                                  :retry? true
+                                  :retry-times (+ 1 old-op-retry-times))))
+              (assoc op
+                :type :fail
+                :error (Throwable->map e)
+                :target-node (:target-node this)
+                :extra "happened in op"))))
         (catch java.net.SocketTimeoutException e
           (assoc op
             :type :fail

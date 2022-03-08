@@ -92,7 +92,11 @@
     [#(and (number? %) (pos? %)) "Must be a positive number"]]
    [nil "--dummy BOOL" "Whether to use dummy ssh connection for local test."
     :default false :parse-fn read-string :validate
-    [#(boolean? %) "Must be a boolean"]]])
+    [#(boolean? %) "Must be a boolean"]]
+   [nil "--max-retry-times INT"
+    "The maximum retry times of every operation in the test." :default 5
+    :parse-fn read-string :validate
+    [#(and (number? %) (pos? %)) "Must be a positive number"]]])
 
 (defn -main
   "Handles command line arguments. Can either run a test, or a web server for
