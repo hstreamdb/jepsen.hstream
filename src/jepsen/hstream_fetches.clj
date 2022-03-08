@@ -68,54 +68,47 @@
     (invoke! [this test op]
       (try
         (case (:f op)
-          :add
-            (let [is-done (agent nil)
-                  test-data {:key (:value op)}
-                  producer (create-producer (:client this) (:stream op))]
-              (send-off
-                is-done
-                (fn [_]
-                  (try
-                    (let [write-future
-                            (if (zero? (:max-partitions opts))
-                              (write-data producer test-data)
-                              (write-data
-                                producer
-                                test-data
-                                ;; orderingKey
-                                (str (mod (+ (:value op)
-                                             (rand-int (:max-partitions opts)))
-                                          (:max-partitions opts)))))]
-                      (.join write-future)
-                      {:status :done, :details nil})
-                    (catch java.util.concurrent.CompletionException e
-                      (if (= (-> (Throwable->map e)
-                                 :via
-                                 second
-                                 :type)
-                             (-> io.hstream.HStreamDBClientException
-                                 .getName
-                                 symbol))
-                        {:status :retry, :exception e}
-                        {:status :error, :details (Throwable->map e)}))
-                    (catch Exception e
-                      {:status :error, :details (Throwable->map e)}))))
-              (if (await-for (* 1000 (:write-timeout opts)) is-done)
-                (let [done-result @is-done]
-                  (case (:status done-result)
-                    :done (assoc op
-                            :type :ok
-                            :target-node (:target-node this))
-                    :error (assoc op
-                             :type :fail
-                             :error (:details done-result)
-                             :target-node (:target-node this)
-                             :extra "happened in send-off")
-                    :retry (throw (:exception done-result))))
-                (assoc op
-                  :type :fail
-                  :error :unknown-timeout
-                  :target-node (:target-node this))))
+          :add (let [is-done (agent nil)
+                     test-data {:key (:value op)}
+                     producer (create-producer (:client this) (:stream op))]
+                 (send-off
+                   is-done
+                   (fn [_]
+                     (try (let [write-future
+                                  (if (zero? (:max-partitions opts))
+                                    (write-data producer test-data)
+                                    (write-data
+                                      producer
+                                      test-data
+                                      ;; orderingKey
+                                      (str (mod (+ (:value op)
+                                                   (rand-int (:max-partitions
+                                                               opts)))
+                                                (:max-partitions opts)))))]
+                            (.join write-future)
+                            {:status :done, :details nil})
+                          (catch java.util.concurrent.CompletionException e
+                            (if (is-hstream-client-unavailable-exception? e)
+                              {:status :retry, :exception e}
+                              {:status :error, :details (Throwable->map e)}))
+                          (catch Exception e
+                            {:status :error, :details (Throwable->map e)}))))
+                 (if (await-for (* 1000 (:write-timeout opts)) is-done)
+                   (let [done-result @is-done]
+                     (case (:status done-result)
+                       :done (assoc op
+                               :type :ok
+                               :target-node (:target-node this))
+                       :error (assoc op
+                                :type :fail
+                                :error (:details done-result)
+                                :target-node (:target-node this)
+                                :extra "happened in send-off")
+                       :retry (throw (:exception done-result))))
+                   (assoc op
+                     :type :fail
+                     :error :unknown-timeout
+                     :target-node (:target-node this))))
           :sub (let [test-subscription-id (str "subscription_" (:stream op))]
                  (subscribe (:client this)
                             test-subscription-id
@@ -142,13 +135,7 @@
                 :value @subscription-result
                 :target-node (:target-node this))))
         (catch java.util.concurrent.CompletionException e
-          (if (= (-> (Throwable->map e)
-                     :via
-                     second
-                     :type)
-                 (-> io.hstream.HStreamDBClientException
-                     .getName
-                     symbol))
+          (if (is-hstream-client-unavailable-exception? e)
             (let [new-target-node (rand-nth (local-nemesis/find-alive-nodes
                                               test))
                   new-client (get-client-until-ok (str new-target-node ":6570"))
@@ -156,7 +143,6 @@
                                (assoc :target-node new-target-node
                                       :client new-client))]
               (Thread/sleep 1000)
-              (info "RRRRRRRRRRRRRRRRRRRetry!")
               (client/invoke! new-this test (assoc op :retry? true)))
             (assoc op
               :type :fail
@@ -176,8 +162,7 @@
             :extra "happened in op"))))
     (teardown! [this _])
     (close! [this _]
-      (try (dosync (println ">>> Closing client...")
-                   (.close (:client this)))
+      (try (dosync (println ">>> Closing client...") (.close (:client this)))
            (catch Exception e nil))))
 
 (defn hstream-test

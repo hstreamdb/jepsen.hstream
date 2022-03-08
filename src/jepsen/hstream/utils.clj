@@ -28,3 +28,22 @@
                            acc)))
                {:is-valid true, :cur-ref (into [] pushes)}
                (into [] pops))))
+
+(defn is-hstream-client-exception?
+  [e]
+  (= (-> (Throwable->map e)
+         :via
+         second
+         :type)
+     (-> io.hstream.HStreamDBClientException
+         .getName
+         symbol)))
+
+(defn is-hstream-client-unavailable-exception?
+  [e]
+  (and (is-hstream-client-exception? e)
+       (= (-> (Throwable->map e)
+              :via
+              second
+              :message)
+          "io.grpc.StatusException: UNAVAILABLE: io exception")))
