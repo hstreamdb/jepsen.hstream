@@ -51,7 +51,7 @@
   [stream]
   (gen/once {:type :invoke, :f :sub, :value stream, :stream stream}))
 
-(defrecord Client [opts test-streams subscription-results futures]
+(defrecord Client [opts test-streams subscription-results]
   client/Client
     (open! [this test node]
       (let [target-node (if (local-nemesis/is-node-alive node)
@@ -86,10 +86,7 @@
                                 (str (mod (+ (:value op)
                                              (rand-int (:max-partitions opts)))
                                           (:max-partitions opts)))))]
-                      (if (:async-write opts)
-                        (dosync
-                          (alter futures assoc (:client this) write-future))
-                        (.join write-future))
+                      (.join write-future)
                       {:status :done, :details nil})
                     (catch java.util.concurrent.CompletionException e
                       (if (= (-> (Throwable->map e)
@@ -180,8 +177,6 @@
     (teardown! [this _])
     (close! [this _]
       (try (dosync (println ">>> Closing client...")
-                   (let [write-future (get @futures (:client this))]
-                     (when (not (nil? write-future)) (.join write-future)))
                    (.close (:client this)))
            (catch Exception e nil))))
 
@@ -194,15 +189,14 @@
                            (repeatedly (:max-streams opts)
                                        #(rs/string test-stream-name-length)))
         subscription-results
-          (into [] (repeatedly (:fetching-number opts) #(ref [])))
-        futures (ref {})]
+          (into [] (repeatedly (:fetching-number opts) #(ref [])))]
     (merge
       tests/noop-test
       opts
       {:pure-generators true,
        :name "HStream",
        :db (common/db "0.7.0" test-streams),
-       :client (Client. opts test-streams subscription-results futures),
+       :client (Client. opts test-streams subscription-results),
        :nemesis (local-nemesis/nemesis+),
        :ssh {:dummy? (:dummy opts)},
        :checker (checker/compose {:set (local-checker/set+),

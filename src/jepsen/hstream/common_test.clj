@@ -92,10 +92,6 @@
     [#(and (number? %) (pos? %)) "Must be a positive number"]]
    [nil "--dummy BOOL" "Whether to use dummy ssh connection for local test."
     :default false :parse-fn read-string :validate
-    [#(boolean? %) "Must be a boolean"]]
-   [nil "--async-write BOOL"
-    "Whether to use async write mode. If it is set to false, return :ok until every write operation finishes."
-    :default false :parse-fn read-string :validate
     [#(boolean? %) "Must be a boolean"]]])
 
 (defn -main
