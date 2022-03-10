@@ -2,6 +2,14 @@
 
 (defn in? "true if coll contains elm" [coll elm] (some #(= elm %) coll))
 
+(defn insert [v i e] (vec (concat (subvec v 0 i) [e] (subvec v i))))
+
+(defn indices [pred coll]
+   (keep-indexed #(when (pred %2) %1) coll))
+
+(defn first-index [pred coll]
+  ((comp first indices) pred coll))
+
 (defn is-sorted?
   "true if the coll is already sorted by `<=`"
   [coll]
