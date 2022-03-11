@@ -28,7 +28,8 @@
 ;; s_i].
 
 (def sample-paras
-  {:max-streams 10,
+  {:rate 10,
+   :max-streams 10,
    :max-write-number 100,
    :max-read-number 10,
    :read-wait-time 120})
@@ -39,26 +40,26 @@
 
 (defn husky-gen-read
   [stream id]
-  {:type :invoke, :f :read, :value nil, :consumer-id id, :stream stream})
+  {:type :invoke, :f :read, :value stream, :consumer-id id, :stream stream})
 
 (defn husky-gen-sub
   [stream]
-  {:type :invoke, :f :sub, :value nil, :stream stream})
+  {:type :invoke, :f :sub, :value stream, :stream stream})
 
 (defn husky-gen-create
   [stream]
-  {:type :invoke, :f :create, :value nil, :stream stream})
+  {:type :invoke, :f :create, :value stream, :stream stream})
 
 
 (defn seq-to-generators
-  [coll paras]
-  (let [read-wait-time (:read-wait-time paras)]
-    (map #(case (:f %)
-            :add (gen/once %)
-            :read (gen/phases (gen/once %) (gen/sleep read-wait-time))
-            :sub (gen/once %)
-            :create (gen/once %))
-      coll)))
+  [coll]
+  (map #(case (:f %)
+          :add (gen/once %)
+          :read (gen/once %)
+          ;; sleep for a while to ensure the action is finished
+          :sub (gen/phases (gen/once %) (gen/sleep 2))
+          :create (gen/phases (gen/once %) (gen/sleep 2)))
+    coll))
 
 ;; Generate!
 (defn husky-generate
@@ -70,14 +71,18 @@
         ;; Randomly generated streams
         streams (repeatedly max-streams #(rs/string 10))
         read-streams (repeatedly max-read-number #(rand-nth streams))
+        ;; Other local variables
+        write-value-counter (atom 0)
         ;; Start...
         each-stream-write-number (split-integer-2 max-write-number max-streams)
-        sorted-writes
-          (apply concat
-            (map (fn [index]
-                   (map (fn [_] (husky-gen-write (nth streams index) index))
-                     (range (nth each-stream-write-number index))))
-              (range max-streams)))
+        sorted-writes (apply concat
+                        (map (fn [index]
+                               (map (fn [_]
+                                      (swap! write-value-counter inc)
+                                      (husky-gen-write (nth streams index)
+                                                       @write-value-counter))
+                                 (range (nth each-stream-write-number index))))
+                          (range max-streams)))
         sorted-reads (map (fn [index]
                             (husky-gen-read (nth read-streams index) index))
                        (range max-read-number))
@@ -120,4 +125,6 @@
                                     (insert acc pos val)))
                           sub-inserted
                           streams)]
-    (gen/phases (seq-to-generators create-inserted paras))))
+    (gen/phases (->> (seq-to-generators create-inserted)
+                     (gen/stagger (/ (:rate paras))))
+                (gen/sleep (:read-wait-time paras)))))
