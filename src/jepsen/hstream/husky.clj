@@ -57,8 +57,8 @@
           :add (gen/once %)
           :read (gen/once %)
           ;; sleep for a while to ensure the action is finished
-          :sub (gen/phases (gen/once %) (gen/sleep 2))
-          :create (gen/phases (gen/once %) (gen/sleep 2)))
+          :sub (gen/phases (gen/once %) (gen/sleep 1))
+          :create (gen/phases (gen/once %) (gen/sleep 1)))
     coll))
 
 ;; Generate!
@@ -103,13 +103,15 @@
                          {stream (+ max-write-number max-read-number)}
                          {stream index}))
                   earliest-read-of-each-stream))
-        sub-inserted
-          (reduce (fn [acc stream]
-                    (let [pos (get earliest-read-of-each-stream-amended stream)
-                          val (husky-gen-sub stream)]
-                      (insert acc pos val)))
-            shuffled-writes-with-reads
-            (distinct read-streams))
+        sub-inserted (reduce (fn [acc stream]
+                               (let [earliest-pos
+                                       (get earliest-read-of-each-stream-amended
+                                            stream)
+                                     pos (rand-int earliest-pos)
+                                     val (husky-gen-sub stream)]
+                                 (insert acc pos val)))
+                       shuffled-writes-with-reads
+                       (distinct read-streams))
         earliest-rws-of-each-stream
           (reduce (fn [acc stream]
                     (let [index (first-index (fn [item]
@@ -118,13 +120,14 @@
                       (assoc acc stream index)))
             {}
             streams)
-        create-inserted (reduce (fn [acc stream]
-                                  (let [pos (get earliest-rws-of-each-stream
-                                                 stream)
-                                        val (husky-gen-create stream)]
-                                    (insert acc pos val)))
-                          sub-inserted
-                          streams)]
+        create-inserted
+          (reduce (fn [acc stream]
+                    (let [earliest-pos (get earliest-rws-of-each-stream stream)
+                          pos (rand-int earliest-pos)
+                          val (husky-gen-create stream)]
+                      (insert acc pos val)))
+            sub-inserted
+            streams)]
     (gen/phases (->> (seq-to-generators create-inserted)
                      (gen/stagger (/ (:rate paras))))
                 (gen/sleep (:read-wait-time paras)))))

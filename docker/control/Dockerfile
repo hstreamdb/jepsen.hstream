@@ -26,18 +26,32 @@ CMD /init-ssh.sh && \
     eval `ssh-agent` && \
     ssh-add /root/.ssh/id_rsa && \
     cd /home/Work && \
+    # For jepsen.write-then-read
+    # lein run test \
+    # --node "n1" "n2" "n3" "n4" "n5" "zk" "ld" \
+    # --ssh-private-key "/root/.ssh/id_rsa" \
+    # --dummy false \
+    # --rate 100 \
+    # --write-time 120 \
+    # --fetch-wait-time 240 \
+    # --concurrency 150 \
+    # --fetching-number 100 \
+    # --max-streams 10 \
+    # --write-timeout 60 \
+    # --nemesis-interval 15 \
+    # --nemesis-on false \
+    # --max-partitions 10 && \
+    # For jepsen.husky-test
     lein run test \
     --node "n1" "n2" "n3" "n4" "n5" "zk" "ld" \
     --ssh-private-key "/root/.ssh/id_rsa" \
     --dummy false \
-    --rate 100 \
-    --write-time 120 \
+    --rate 50 \
+    --write-number 5000 \
     --fetch-wait-time 180 \
-    --concurrency 100 \
+    --concurrency 200 \
     --fetching-number 100 \
     --max-streams 10 \
     --write-timeout 60 \
-    --nemesis-interval 15 \
-    --nemesis-on false \
     --max-partitions 10 && \
     exit
