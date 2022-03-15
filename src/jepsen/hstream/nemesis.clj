@@ -67,4 +67,20 @@
                                :node node))))))
       (nemesis/teardown! [_ _])))
 
-(defn zk-nemesis [] (nemesis/partition-random-node))
+(defn split-one-hserver-node
+  "Split one node off from the rest.
+   It ensures that the loner is always a hserver node."
+  [nodes]
+  (let [hserver-nodes (remove #{"zk" "ld"} nodes)
+        loner (rand-nth hserver-nodes)]
+    [[loner] (remove (fn [x] (= x loner)) nodes)]))
+
+(defn simple-grudge
+  [components]
+  (let [[loner-vec rest-seq] components
+        [loner] loner-vec]
+    (assoc {} loner (into #{} rest-seq))))
+
+(defn zk-nemesis
+  []
+  (nemesis/partitioner (comp simple-grudge split-one-hserver-node)))
