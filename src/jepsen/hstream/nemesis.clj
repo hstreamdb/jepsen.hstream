@@ -13,10 +13,10 @@
   [node]
   (c/on node
         (c/exec* "killall"
-                "-9" "hstream-server"
-                "&&" "killall"
-                "-9" "hstream-server"
-                "||" "true")))
+                 "-9" "hstream-server"
+                 "&&" "killall"
+                 "-9" "hstream-server"
+                 "||" "true")))
 
 (defn is-hserver-on-node-dead?
   [node]
@@ -49,22 +49,22 @@
       (nemesis/setup! [this _] this)
       (nemesis/invoke! [_ test op]
         (case (:f op)
-          :start (let [alive-nodes (find-hserver-alive-nodes test)]
-                   (if (<= (count alive-nodes) 1)
-                     (assoc op :value "killing skipped")
-                     (let [node (rand-nth alive-nodes)]
-                       (kill-node node)
-                       (assoc op
-                         :value "killed"
-                         :node node))))
-          :stop (let [dead-nodes (find-hserver-dead-nodes test)]
-                  (if (empty? dead-nodes)
-                    (assoc op :value "restarting skipped")
-                    (let [node (rand-nth dead-nodes)]
-                      (restart-node node)
-                      (assoc op
-                        :value "restarted"
-                        :node node))))))
+          :kill-node (let [alive-nodes (find-hserver-alive-nodes test)]
+                       (if (<= (count alive-nodes) 1)
+                         (assoc op :value "killing skipped")
+                         (let [node (rand-nth alive-nodes)]
+                           (kill-node node)
+                           (assoc op
+                             :value "killed"
+                             :node node))))
+          :resume-node (let [dead-nodes (find-hserver-dead-nodes test)]
+                         (if (empty? dead-nodes)
+                           (assoc op :value "restarting skipped")
+                           (let [node (rand-nth dead-nodes)]
+                             (restart-node node)
+                             (assoc op
+                               :value "restarted"
+                               :node node))))))
       (nemesis/teardown! [_ _])))
 
 (defn zk-nemesis [] (nemesis/partition-random-node))

@@ -90,8 +90,8 @@
            ;; nemesis
            (if (:nemesis-on opts)
              (->> (gen/phases (gen/sleep 10)
-                              (gen/mix [(repeat {:type :info, :f :start})
-                                        (repeat {:type :info, :f :stop})]))
+                              (gen/mix [(repeat {:type :info, :f :kill-node})
+                                        (repeat {:type :info, :f :resume-node})]))
                   (gen/stagger (:nemesis-interval opts))
                   (gen/time-limit (+ (:write-time opts)
                                      (:fetch-wait-time opts))))
@@ -112,13 +112,6 @@
       [#(and (number? %) (pos? %)) "Must be a positive number"]]
      ["-w" "--write-time SECOND" "The whole time to write data into database."
       :default 20 :parse-fn read-string :validate
-      [#(and (number? %) (pos? %)) "Must be a positive number"]]
-     [nil "--nemesis-on [true|false]" "Whether to turn on the nemesis" :default
-      true :parse-fn read-string :validate
-      [#(boolean? %) "Must be a boolean value"]]
-     [nil "--nemesis-interval SECOND"
-      "The interval between two nemesis operations." :default 15 :parse-fn
-      read-string :validate
       [#(and (number? %) (pos? %)) "Must be a positive number"]]]))
 
 (defn -main

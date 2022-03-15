@@ -186,4 +186,11 @@
    [nil "--max-partitions INT"
     "The maximum number of partitions(ordering keys). 0 means use default key only"
     :default 0 :parse-fn read-string :validate
-    [#(and (number? %) (>= % 0)) "Must be a non-negative number"]]])
+    [#(and (number? %) (>= % 0)) "Must be a non-negative number"]]
+   [nil "--nemesis-on [true|false]" "Whether to turn on the nemesis" :default
+    true :parse-fn read-string :validate
+    [#(boolean? %) "Must be a boolean value"]]
+   [nil "--nemesis-interval SECOND"
+    "The interval between two nemesis operations." :default 15 :parse-fn
+    read-string :validate
+    [#(and (number? %) (pos? %)) "Must be a positive number"]]])
