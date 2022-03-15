@@ -12,7 +12,7 @@
 (defn kill-node
   [node]
   (c/on node
-        (c/exec "killall"
+        (c/exec* "killall"
                 "-9" "hstream-server"
                 "&&" "killall"
                 "-9" "hstream-server"
@@ -21,16 +21,16 @@
 (defn is-hserver-on-node-dead?
   [node]
   (let [shell-out (c/on node
-                        (c/exec "pgrep" "-x" "hstream-server" "||" "true"))]
+                        (c/exec* "pgrep" "-x" "hstream-server" "||" "true"))]
     (empty? shell-out)))
 
 (defn is-hserver-on-node-alive?
   [node]
   (let [shell-out (c/on node
-                        (c/exec "pgrep" "-x" "hstream-server" "||" "true"))]
+                        (c/exec* "pgrep" "-x" "hstream-server" "||" "true"))]
     (seq shell-out)))
 
-(defn restart-node [node] (c/on node (c/exec "/bin/start-hstream-server")))
+(defn restart-node [node] (c/on node (c/exec* "/bin/start-hstream-server")))
 
 (defn find-hserver-alive-nodes
   [test]
