@@ -43,7 +43,7 @@ CMD /init-ssh.sh && \
     # --max-partitions 10 && \
     # For jepsen.husky-test
     lein run test \
-    --node "n1" "n2" "n3" "n4" "n5" "zk" "ld" \
+    --node "n1" --node "n2" --node "n3" --node "n4" --node "n5" --node "zk" --node "ld" \
     --ssh-private-key "/root/.ssh/id_rsa" \
     --dummy false \
     --rate 50 \
@@ -53,5 +53,7 @@ CMD /init-ssh.sh && \
     --fetching-number 100 \
     --max-streams 10 \
     --write-timeout 60 \
+    --nemesis-interval 10 \
+    --nemesis-on true \
     --max-partitions 10 && \
     exit
