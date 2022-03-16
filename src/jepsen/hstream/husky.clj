@@ -68,9 +68,13 @@
         max-streams (:max-streams paras)
         max-write-number (:max-write-number paras)
         max-read-number (:max-read-number paras)
-        ;; Randomly generated streams
+        ;; Randomly generated streams and related variables
         streams (repeatedly max-streams #(rs/string 10))
         read-streams (repeatedly max-read-number #(rand-nth streams))
+        distinct-read-streams (distinct read-streams)
+        distinct-read-stream-number (count distinct-read-streams)
+        random-distributed-read-number (- max-read-number
+                                          distinct-read-stream-number)
         ;; Other local variables
         write-value-counter (atom 0)
         ;; Start...
@@ -85,7 +89,7 @@
                           (range max-streams)))
         sorted-reads (map (fn [index]
                             (husky-gen-read (nth read-streams index) index))
-                       (range max-read-number))
+                       (range random-distributed-read-number))
         shuffled-writes-with-reads
           (shuffle (into [] (concat sorted-writes sorted-reads)))
         earliest-read-of-each-stream
@@ -127,7 +131,16 @@
                           val (husky-gen-create stream)]
                       (insert acc pos val)))
             sub-inserted
-            streams)]
-    (gen/phases (->> (seq-to-generators create-inserted)
+            streams)
+        final-read-patched
+          (let [extra-reads
+                  (map (fn [index]
+                         (husky-gen-read
+                           (nth distinct-read-streams
+                                (- index random-distributed-read-number))
+                           index))
+                    (range random-distributed-read-number max-read-number))]
+            (concat create-inserted extra-reads))]
+    (gen/phases (->> (seq-to-generators final-read-patched)
                      (gen/stagger (/ (:rate paras))))
                 (gen/sleep (:read-wait-time paras)))))
