@@ -4,11 +4,9 @@
 
 (defn insert [v i e] (vec (concat (subvec v 0 i) [e] (subvec v i))))
 
-(defn indices [pred coll]
-   (keep-indexed #(when (pred %2) %1) coll))
+(defn indices [pred coll] (keep-indexed #(when (pred %2) %1) coll))
 
-(defn first-index [pred coll]
-  ((comp first indices) pred coll))
+(defn first-index [pred coll] ((comp first indices) pred coll))
 
 (defn is-sorted?
   "true if the coll is already sorted by `<=`"
@@ -47,11 +45,14 @@
          .getName
          symbol)))
 
-(defn is-hstream-client-unavailable-exception?
+(defn is-hstream-client-retriable-exception?
   [e]
-  (and (is-hstream-client-exception? e)
-       (= (-> (Throwable->map e)
-              :via
-              second
-              :message)
-          "io.grpc.StatusException: UNAVAILABLE: io exception")))
+  (and
+    (is-hstream-client-exception? e)
+    (in?
+      ["io.grpc.StatusException: UNAVAILABLE: io exception"
+       "io.grpc.StatusException: FAILED_PRECONDITION: Send appendRequest to wrong Server."]
+      (-> (Throwable->map e)
+          :via
+          second
+          :message))))

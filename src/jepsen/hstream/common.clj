@@ -75,7 +75,7 @@
                             (.join write-future)
                             {:status :done, :details nil})
                           (catch java.util.concurrent.CompletionException e
-                            (if (is-hstream-client-unavailable-exception? e)
+                            (if (is-hstream-client-retriable-exception? e)
                               {:status :retry, :exception e}
                               {:status :error, :details (Throwable->map e)}))
                           (catch Exception e
@@ -128,7 +128,7 @@
         (catch java.util.concurrent.CompletionException e
           (let [old-op-retry-times
                   (if (nil? (:retry-times op)) 0 (:retry-times op))]
-            (if (and (is-hstream-client-unavailable-exception? e)
+            (if (and (is-hstream-client-retriable-exception? e)
                      (< old-op-retry-times (:max-retry-times opts)))
               (let [new-target-node
                       (rand-nth (local-nemesis/find-hserver-alive-nodes test))
