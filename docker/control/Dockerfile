@@ -27,7 +27,7 @@ CMD /init-ssh.sh && \
     ssh-add /root/.ssh/id_rsa && \
     cd /home/Work && \
     # For jepsen.write-then-read
-    # lein run test \
+    # lein with-profile write-then-read run test \
     # --node "n1" "n2" "n3" "n4" "n5" "zk" "ld" \
     # --ssh-private-key "/root/.ssh/id_rsa" \
     # --dummy false \
@@ -42,18 +42,18 @@ CMD /init-ssh.sh && \
     # --nemesis-on false \
     # --max-partitions 10 && \
     # For jepsen.husky-test
-    lein run test \
+    lein with-profile husky run test \
     --node "n1" --node "n2" --node "n3" --node "n4" --node "n5" --node "zk" --node "ld" \
     --ssh-private-key "/root/.ssh/id_rsa" \
     --dummy false \
-    --rate 50 \
-    --write-number 5000 \
+    --rate 10 \
+    --write-number 1000 \
     --fetch-wait-time 180 \
-    --concurrency 200 \
+    --concurrency 110 \
     --fetching-number 100 \
     --max-streams 10 \
     --write-timeout 60 \
-    --nemesis-interval 10 \
-    --nemesis-on true \
+    --nemesis-interval 15 \
+    --nemesis-on false \
     --max-partitions 10 && \
     exit

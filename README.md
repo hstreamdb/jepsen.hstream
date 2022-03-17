@@ -21,11 +21,11 @@ docker-compose --file ./docker/docker-compose.yml --compatibility -p jepsen up -
 **Note:** For users in the Chinese mainland, you can uncomment the following lines in the `project.clj` file to accelerate package retrieving:
 
 ```
-  ; :mirrors {#"clojars" {:name "clojars-ustc"
-  ;                       :url "https://mirrors.ustc.edu.cn/clojars/"
-  ;                       :repo-manager true}
-  ;           #"central" {:name "central-aliyun"
-  ;                       :url "https://maven.aliyun.com/repository/public"
+  ; :mirrors {#"clojars" {:name "clojars-ustc",
+  ;                       :url "https://mirrors.ustc.edu.cn/clojars/",
+  ;                       :repo-manager true},
+  ;           #"central" {:name "central-aliyun",
+  ;                       :url "https://maven.aliyun.com/repository/public",
   ;                       :repo-manager true}}
 ```
 
