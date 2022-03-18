@@ -75,12 +75,17 @@
         loner (rand-nth hserver-nodes)]
     [[loner] (remove (fn [x] (= x loner)) nodes)]))
 
-(defn simple-grudge
+(defn zk-hserver-grudge
+  "Takes a collection of components in the form of [[loner] '(others)],
+   and computes a grudge such that the loner can not talk from and to
+   the zk node. The result is in the form of {loner #{zk}, zk #{loner}}."
   [components]
-  (let [[loner-vec rest-seq] components
+  (let [[loner-vec _] components
         [loner] loner-vec]
-    (assoc {} loner (into #{} rest-seq))))
+    (assoc {}
+      loner #{"zk"}
+      "zk" #{loner})))
 
 (defn zk-nemesis
   []
-  (nemesis/partitioner (comp simple-grudge split-one-hserver-node)))
+  (nemesis/partitioner (comp zk-hserver-grudge split-one-hserver-node)))
