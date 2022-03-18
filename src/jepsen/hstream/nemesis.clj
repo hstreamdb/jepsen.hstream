@@ -7,7 +7,8 @@
              [tests :as tests]]
             [jepsen.hstream.client :refer :all]
             [jepsen.hstream.mvar :refer :all]
-            [jepsen.hstream.utils :refer :all]))
+            [jepsen.hstream.utils :refer :all]
+            [jepsen.net :as net]))
 
 (defn kill-node
   [node]
@@ -36,7 +37,6 @@
   [test]
   (into []
         (filter is-hserver-on-node-alive? (remove #{"zk" "ld"} (:nodes test)))))
-
 (defn find-hserver-dead-nodes
   [test]
   (into []
@@ -89,3 +89,29 @@
 (defn zk-nemesis
   []
   (nemesis/partitioner (comp zk-hserver-grudge split-one-hserver-node)))
+
+(defn slower
+  []
+  (reify
+    nemesis/Nemesis
+      (nemesis/setup! [this test] (net/fast! (:net test) test) this)
+      (nemesis/invoke! [this test op]
+        (case (:f op)
+          :start-slow (do (net/slow! (:net test) test)
+                          (assoc op :value :slowed-by-50ms))
+          :stop-slow (do (net/fast! (:net test) test)
+                         (assoc op :value :network-resumed))))
+      (nemesis/teardown! [this test] (net/fast! (:net test) test))))
+
+(defn losser
+  []
+  (reify
+    nemesis/Nemesis
+      (nemesis/setup! [this test] (net/fast! (:net test) test) this)
+      (nemesis/invoke! [this test op]
+        (case (:f op)
+          :start-loss (do (net/flaky! (:net test) test)
+                          (assoc op :value :loss-by-20%))
+          :stop-loss (do (net/fast! (:net test) test)
+                         (assoc op :value :network-resumed))))
+      (nemesis/teardown! [this test] (net/fast! (:net test) test))))
