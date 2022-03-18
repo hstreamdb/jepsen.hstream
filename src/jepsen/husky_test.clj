@@ -46,23 +46,25 @@
                                   :exceptions (checker/unhandled-exceptions),
                                   :timeline (timeline/html)}),
        :generator
-         (gen/clients
-           ;; clients
-           (husky/husky-generate {:rate (:rate opts),
-                                  :max-streams (:max-streams opts),
-                                  :max-write-number (:write-number opts),
-                                  :max-read-number (:fetching-number opts),
-                                  :read-wait-time (:fetch-wait-time opts)})
-           ;; nemesis
-           (->> (if (:nemesis-on opts)
-                  (gen/phases (gen/sleep 10)
-                              (gen/mix [(repeat {:type :info, :f :kill-node})
-                                        (repeat {:type :info, :f :resume-node})]))
-                  (gen/sleep (:nemesis-interval opts)))
-                (gen/stagger (:nemesis-interval opts))
-                (gen/time-limit (+ (* 2 (:max-streams opts))
-                                   (quot (:write-number opts) (:rate opts))
-                                   (:fetch-wait-time opts)))))})))
+         (let [client-gen (husky/husky-generate
+                            {:rate (:rate opts),
+                             :max-streams (:max-streams opts),
+                             :max-write-number (:write-number opts),
+                             :max-read-number (:fetching-number opts),
+                             :read-wait-time (:fetch-wait-time opts)})]
+           (if (:nemesis-on opts)
+             (let [nemesis-gen
+                     (->> (gen/phases
+                            (gen/sleep 10)
+                            (gen/mix [(repeat {:type :info, :f :kill-node})
+                                      (repeat {:type :info, :f :resume-node})]))
+                          (gen/stagger (:nemesis-interval opts))
+                          (gen/time-limit
+                            (+ (* 2 (:max-streams opts))
+                               (quot (:write-number opts) (:rate opts))
+                               (:fetch-wait-time opts))))]
+               (gen/clients client-gen nemesis-gen))
+             (gen/clients client-gen)))})))
 
 (def cli-opts
   "Additional command line options."
