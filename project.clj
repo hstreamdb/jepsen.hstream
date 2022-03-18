@@ -17,6 +17,6 @@
                  [jepsen "0.2.6"]
                  [random-string "0.1.0"]
                  [io.hstream/hstreamdb-java
-                  "0.7.1-SNAPSHOT"
+                  "0.8.0-SNAPSHOT"
                   :exclusions
                   [org.apache.logging.log4j/log4j-slf4j-impl]]])
