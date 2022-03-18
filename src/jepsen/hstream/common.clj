@@ -9,45 +9,48 @@
             [jepsen.hstream.mvar :refer :all]
             [jepsen.hstream.nemesis :as local-nemesis]
             [jepsen.hstream.utils :refer :all]
-            [slingshot.slingshot :refer [try+]]))
+            [slingshot.slingshot :refer [try+]]
+            [jepsen.hstream.utils :refer :all]))
 
 (defn db-with-streams-initialized
   "HStream DB for a particular version. Here we use the FIRST
    node to create streams for the whole test."
-  [version streams]
+  [version streams clients-ref]
   (reify
     db/DB
       (setup! [_ test node]
         (info node ">>> Setting up DB: HStream" version)
-        (when (= node (first (:nodes test)))
+        (when-not (in? #{"zk" "ld"} node)
           (let [service-url (str node ":6570")
-                client (get-client service-url)]
-            (dosync (dorun (map #(try+ (create-stream client %)
-                                       (catch Exception e nil))
-                             streams))))))
+                this-client (get-client service-url)]
+            (dosync (alter clients-ref assoc node this-client))
+            (when (= node (first (:nodes test)))
+              (dosync (dorun (map #(try+ (create-stream this-client %)
+                                         (catch Exception e nil))
+                               streams)))))))
       (teardown! [_ _ node]
         (info node ">>> Tearing down DB: HStream" version))))
 
 (defn db-empty
   "HStream DB for a particular version. No extra action is executed after the DB is ready."
-  [version]
+  [version clients-ref]
   (reify
     db/DB
-      (setup! [_ _ node] (info node ">>> Setting up DB: HStream" version))
+      (setup! [_ _ node]
+        (info node ">>> Setting up DB: HStream" version)
+        (when-not (in? #{"zk" "ld"} node)
+          (let [service-url (str node ":6570")
+                this-client (get-client service-url)]
+            (dosync (alter clients-ref assoc node this-client)))))
       (teardown! [_ _ node]
         (info node ">>> Tearing down DB: HStream" version))))
 
-(defrecord Default-Client [opts subscription-results subscription-timeout]
+(defrecord Default-Client [opts clients-ref subscription-results
+                           subscription-timeout]
   client/Client
     (open! [this test node]
-      (let [target-node (if (local-nemesis/is-hserver-on-node-alive? node)
-                          node
-                          (rand-nth (local-nemesis/find-hserver-alive-nodes
-                                      test))) ;; FIXME:
-            ;; Empty
-            ;; list!
-            service-url (str target-node ":6570")
-            client (get-client-until-ok service-url)]
+      (let [clients @clients-ref
+            [target-node client] (rand-nth (into [] clients))]
         (-> this
             (assoc :client client
                    :target-node target-node))))

@@ -45,7 +45,8 @@
   "Given an options map from the command-line runner (e.g. :nodes, :ssh,
   :concurrency, ...), constructs a test map."
   [opts]
-  (let [; "The random-named stream names. It is a vector of strings."
+  (let [clients-ref (ref {})
+        ; "The random-named stream names. It is a vector of strings."
         test-streams (into []
                            (repeatedly (:max-streams opts)
                                        #(rs/string test-stream-name-length)))
@@ -56,8 +57,10 @@
       opts
       {:pure-generators true,
        :name "HStream",
-       :db (common/db-with-streams-initialized "0.7.0" test-streams),
+       :db
+         (common/db-with-streams-initialized "0.7.0" test-streams clients-ref),
        :client (common/Default-Client. opts
+                                       clients-ref
                                        subscription-results
                                        subscription-timeout),
        :nemesis (local-nemesis/nemesis+),
@@ -89,12 +92,12 @@
              (gen/sleep (+ 10 (:fetch-wait-time opts))))
            ;; nemesis
            (if (:nemesis-on opts)
-             (->> (gen/phases (gen/sleep 10)
-                              (gen/mix [(repeat {:type :info, :f :kill-node})
-                                        (repeat {:type :info, :f :resume-node})]))
-                  (gen/stagger (:nemesis-interval opts))
-                  (gen/time-limit (+ (:write-time opts)
-                                     (:fetch-wait-time opts))))
+             (->>
+               (gen/phases (gen/sleep 10)
+                           (gen/mix [(repeat {:type :info, :f :kill-node})
+                                     (repeat {:type :info, :f :resume-node})]))
+               (gen/stagger (:nemesis-interval opts))
+               (gen/time-limit (+ (:write-time opts) (:fetch-wait-time opts))))
              (gen/sleep (+ (:write-time opts) (:fetch-wait-time opts)))))})))
 
 (def cli-opts

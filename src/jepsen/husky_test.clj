@@ -13,7 +13,8 @@
             [jepsen.hstream.mvar :refer :all]
             [jepsen.hstream.utils :refer :all]
             [random-string.core :as rs]
-            [jepsen.hstream.nemesis :as local-nemesis])
+            [jepsen.hstream.nemesis :as local-nemesis]
+            [jepsen.hstream.net :as net+])
   (:import [jepsen.hstream.common Default-Client]))
 
 
@@ -21,7 +22,8 @@
   "Given an options map from the command-line runner (e.g. :nodes, :ssh,
   :concurrency, ...), constructs a test map."
   [opts]
-  (let [subscription-results
+  (let [clients-ref (ref {})
+        subscription-results
           (into [] (repeatedly (:fetching-number opts) #(ref [])))
         subscription-timeout 600]
     (merge
@@ -29,8 +31,9 @@
       opts
       {:pure-generators true,
        :name "HStream",
-       :db (common/db-empty "0.7.0"),
+       :db (common/db-empty "0.7.0" clients-ref),
        :client (common/Default-Client. opts
+                                       clients-ref
                                        subscription-results
                                        subscription-timeout),
        :nemesis (local-nemesis/nemesis+),
@@ -51,15 +54,15 @@
                                   :max-read-number (:fetching-number opts),
                                   :read-wait-time (:fetch-wait-time opts)})
            ;; nemesis
-           (if (:nemesis-on opts)
-             (->>
-               (gen/phases (gen/sleep 10)
-                           (gen/mix [(repeat {:type :info, :f :kill-node})
-                                     (repeat {:type :info, :f :resume-node})]))
-               (gen/stagger (:nemesis-interval opts))
-               (gen/time-limit (+ (* 2 (:max-streams opts))
-                                  (quot (:write-number opts) (:rate opts))
-                                  (:fetch-wait-time opts))))))})))
+           (->> (if (:nemesis-on opts)
+                  (gen/phases (gen/sleep 10)
+                              (gen/mix [(repeat {:type :info, :f :kill-node})
+                                        (repeat {:type :info, :f :resume-node})]))
+                  (gen/sleep (:nemesis-interval opts)))
+                (gen/stagger (:nemesis-interval opts))
+                (gen/time-limit (+ (* 2 (:max-streams opts))
+                                   (quot (:write-number opts) (:rate opts))
+                                   (:fetch-wait-time opts)))))})))
 
 (def cli-opts
   "Additional command line options."
