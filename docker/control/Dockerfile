@@ -47,13 +47,13 @@ CMD /init-ssh.sh && \
     --ssh-private-key "/root/.ssh/id_rsa" \
     --dummy false \
     --rate 10 \
-    --write-number 1000 \
+    --write-number 2000 \
     --fetch-wait-time 180 \
-    --concurrency 110 \
+    --concurrency 200 \
     --fetching-number 100 \
     --max-streams 10 \
     --write-timeout 60 \
     --nemesis-interval 15 \
-    --nemesis-on false \
+    --nemesis-on true \
     --max-partitions 10 && \
     exit

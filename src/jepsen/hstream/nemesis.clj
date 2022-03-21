@@ -8,7 +8,8 @@
             [jepsen.hstream.client :refer :all]
             [jepsen.hstream.mvar :refer :all]
             [jepsen.hstream.utils :refer :all]
-            [jepsen.net :as net]))
+            [jepsen.net :as net]
+            [jepsen.nemesis :as nemesis]))
 
 (defn kill-node
   [node]
@@ -42,7 +43,7 @@
   (into []
         (filter is-hserver-on-node-dead? (remove #{"zk" "ld"} (:nodes test)))))
 
-(defn nemesis+
+(defn hserver-killer
   []
   (reify
     nemesis/Nemesis
@@ -115,3 +116,10 @@
           :stop-loss (do (net/fast! (:net test) test)
                          (assoc op :value :network-resumed))))
       (nemesis/teardown! [this test] (net/fast! (:net test) test))))
+
+(defn nemesis+
+  []
+  (nemesis/compose {#{:kill-node :resume-node} (hserver-killer),
+                    #{:start-slow :stop-slow} (slower),
+                    #{:start-loss :stop-loss} (losser),
+                    {:isolate-zk :start, :resume-zk :stop} (zk-nemesis)}))
