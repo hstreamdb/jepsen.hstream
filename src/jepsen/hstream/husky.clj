@@ -54,11 +54,10 @@
 (defn seq-to-generators
   [coll]
   (map #(case (:f %)
-          :add (gen/once %)
-          :read (gen/once %)
-          ;; sleep for a while to ensure the action is finished
-          :sub (gen/phases (gen/once %) (gen/sleep 1))
-          :create (gen/phases (gen/once %) (gen/sleep 1)))
+          :add %
+          :read %
+          :sub (gen/until-ok %)
+          :create (gen/until-ok %))
     coll))
 
 ;; Generate!
@@ -141,6 +140,6 @@
                            index))
                     (range random-distributed-read-number max-read-number))]
             (concat create-inserted extra-reads))]
-    (gen/phases (->> (seq-to-generators final-read-patched)
-                     (gen/stagger (/ (:rate paras))))
-                (gen/sleep (:read-wait-time paras)))))
+    (->> (->> (seq-to-generators final-read-patched)
+              (gen/stagger (/ (:rate paras))))
+         (gen/then []))))

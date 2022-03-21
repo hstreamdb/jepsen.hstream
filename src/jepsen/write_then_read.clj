@@ -81,13 +81,14 @@
                                  (gen/stagger (/ (:rate opts)))
                                  (gen/time-limit (:write-time opts)))
                             ;; 3. read
-                            ;; 3.1. ensure every stream is read
-                            (map #(gen-read (get test-streams %) %)
-                              (range 0 (count test-streams)))
-                            ;; 3.2. randomly distribute the left read times
-                            (map #(gen-read (rand-nth test-streams) %)
-                              (range (count test-streams)
-                                     (:fetching-number opts)))
+                            (concat
+                              ;; 3.1. ensure every stream is read
+                              (map #(gen-read (get test-streams %) %)
+                                (range 0 (count test-streams)))
+                              ;; 3.2. randomly distribute the left read times
+                              (map #(gen-read (rand-nth test-streams) %)
+                                (range (count test-streams)
+                                       (:fetching-number opts))))
                             (gen/sleep (+ 10 (:fetch-wait-time opts))))]
            (if (:nemesis-on opts)
              (let [nemesis-gen
