@@ -77,12 +77,7 @@
                                                 (:max-partitions opts)))))]
                             (.join write-future)
                             {:status :done, :details nil})
-                          (catch java.util.concurrent.CompletionException e
-                            (if (is-hstream-client-retriable-exception? e)
-                              {:status :retry, :exception e}
-                              {:status :error, :details (Throwable->map e)}))
-                          (catch Exception e
-                            {:status :error, :details (Throwable->map e)}))))
+                          (catch Exception e {:status :retry, :exception e}))))
                  (if (await-for (* 1000 (:write-timeout opts)) is-done)
                    (let [done-result @is-done]
                      (case (:status done-result)
@@ -128,11 +123,10 @@
                 :type :ok
                 :value @subscription-result
                 :target-node (:target-node this))))
-        (catch java.util.concurrent.CompletionException e
+        (catch Exception e
           (let [old-op-retry-times
                   (if (nil? (:retry-times op)) 0 (:retry-times op))]
-            (if (and (is-hstream-client-retriable-exception? e)
-                     (< old-op-retry-times (:max-retry-times opts)))
+            (if (< old-op-retry-times (:max-retry-times opts))
               (let [new-target-node
                       (rand-nth (local-nemesis/find-hserver-alive-nodes test))
                     new-client (get-client-until-ok (str new-target-node
@@ -140,7 +134,7 @@
                     new-this (-> this
                                  (assoc :target-node new-target-node
                                         :client new-client))]
-                (Thread/sleep 1000)
+                (Thread/sleep 10000)
                 (client/invoke! new-this
                                 test
                                 (assoc op
@@ -150,18 +144,7 @@
                 :type :fail
                 :error (Throwable->map e)
                 :target-node (:target-node this)
-                :extra "happened in op"))))
-        (catch java.net.SocketTimeoutException e
-          (assoc op
-            :type :fail
-            :error :socket-timeout
-            :target-node (:target-node this)))
-        (catch Exception e
-          (assoc op
-            :type :fail
-            :error (Throwable->map e)
-            :target-node (:target-node this)
-            :extra "happened in op"))))
+                :extra "happened in op"))))))
     (teardown! [_ _])
     (close! [this _]
       (try (dosync (println ">>> Closing client...") (.close (:client this)))
@@ -180,7 +163,7 @@
     :default false :parse-fn read-string :validate
     [#(boolean? %) "Must be a boolean"]]
    [nil "--max-retry-times INT"
-    "The maximum retry times of every operation in the test." :default 5
+    "The maximum retry times of every operation in the test." :default 10
     :parse-fn read-string :validate
     [#(and (number? %) (pos? %)) "Must be a positive number"]]
    [nil "--write-timeout SECOND" "The max time for a single write operation."
