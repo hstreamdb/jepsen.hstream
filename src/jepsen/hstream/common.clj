@@ -15,33 +15,26 @@
 (defn db-with-streams-initialized
   "HStream DB for a particular version. Here we use the FIRST
    node to create streams for the whole test."
-  [version streams clients-ref]
+  [version streams]
   (reify
     db/DB
       (setup! [_ test node]
         (info node ">>> Setting up DB: HStream" version)
-        (when-not (in? #{"zk" "ld"} node)
+        (when (= node "n1")
           (let [service-url (str node ":6570")
                 this-client (get-client service-url)]
-            (dosync (alter clients-ref assoc node this-client))
-            (when (= node (first (:nodes test)))
-              (dosync (dorun (map #(try+ (create-stream this-client %)
-                                         (catch Exception e nil))
-                               streams)))))))
+            (dosync (dorun (map #(try+ (create-stream this-client %)
+                                       (catch Exception e nil))
+                             streams))))))
       (teardown! [_ _ node]
         (info node ">>> Tearing down DB: HStream" version))))
 
 (defn db-empty
   "HStream DB for a particular version. No extra action is executed after the DB is ready."
-  [version clients-ref]
+  [version]
   (reify
     db/DB
-      (setup! [_ _ node]
-        (info node ">>> Setting up DB: HStream" version)
-        (when-not (in? #{"zk" "ld"} node)
-          (let [service-url (str node ":6570")
-                this-client (get-client service-url)]
-            (dosync (alter clients-ref assoc node this-client)))))
+      (setup! [_ _ node] (info node ">>> Setting up DB: HStream" version))
       (teardown! [_ _ node]
         (info node ">>> Tearing down DB: HStream" version))))
 
@@ -49,8 +42,16 @@
                            subscription-timeout]
   client/Client
     (open! [this test node]
-      (let [clients @clients-ref
-            [target-node client] (rand-nth (into [] clients))]
+      (let [target-node (if (in? ["n1" "n2" "n3" "n4" "n5"] node)
+                          node
+                          (rand-nth ["n1" "n2" "n3" "n4" "n5"]))
+            service-url (str target-node ":6570")
+            cache-client (get @clients-ref target-node)
+            client (if (nil? cache-client)
+                     (let [got-client (get-client-until-ok service-url)]
+                       (dosync (alter clients-ref assoc target-node got-client))
+                       got-client)
+                     cache-client)]
         (-> this
             (assoc :client client
                    :target-node target-node))))
@@ -126,6 +127,7 @@
         (catch Exception e
           (let [old-op-retry-times
                   (if (nil? (:retry-times op)) 0 (:retry-times op))]
+            (dosync (alter clients-ref dissoc (:target-node this)))
             (if (< old-op-retry-times (:max-retry-times opts))
               (let [new-target-node
                       (rand-nth (local-nemesis/find-hserver-alive-nodes test))

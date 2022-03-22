@@ -58,7 +58,7 @@
       {:pure-generators true,
        :name "HStream",
        :db
-         (common/db-with-streams-initialized "0.7.0" test-streams clients-ref),
+         (common/db-with-streams-initialized "0.7.0" test-streams),
        :client (common/Default-Client. opts
                                        clients-ref
                                        subscription-results
