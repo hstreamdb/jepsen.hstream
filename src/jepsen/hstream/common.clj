@@ -133,7 +133,7 @@
             (dosync (alter clients-ref dissoc (:target-node this)))
             (if (< old-op-retry-times (:max-retry-times opts))
               (let [new-this (client/open! this test (:target-node this))]
-                (Thread/sleep 10000)
+                (Thread/sleep 1000)
                 (client/invoke! new-this
                                 test
                                 (assoc op
@@ -145,8 +145,7 @@
                 :target-node (:target-node this)
                 :extra "happened in op"))))))
     (teardown! [_ _])
-    (close! [this _]
-      (dosync (println ">>> Closing client..."))))
+    (close! [this _] (dosync (println ">>> Closing client..."))))
 
 (def cli-opts
   "Additional command line options."
