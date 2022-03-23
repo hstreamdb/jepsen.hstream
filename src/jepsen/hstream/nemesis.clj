@@ -123,3 +123,22 @@
                     #{:start-slow :stop-slow} (slower),
                     #{:start-loss :stop-loss} (losser),
                     {:isolate-zk :start, :resume-zk :stop} (zk-nemesis)}))
+
+(def plot-spec
+  "Specification for how to render operations in plots"
+  {:nemeses #{{:name "kill node",
+               :color "#E9A4A0",
+               :start #{:kill-node},
+               :stop #{:resume-node}}
+              {:name "isolate zk",
+               :color "#F8B500",
+               :start #{:isolate-zk},
+               :stop #{:resume-zk}}
+              {:name "slow network",
+               :color "#C5A0E9",
+               :start #{:start-slow},
+               :stop #{:stop-slow :stop-loss}}
+              {:name "packet loss",
+               :color "#A0E9DB",
+               :start #{:start-loss},
+               :stop #{:stop-loss :stop-slow}}}})

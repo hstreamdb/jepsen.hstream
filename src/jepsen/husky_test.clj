@@ -32,6 +32,7 @@
       {:pure-generators true,
        :name "HStream",
        :net net+/iptables+,
+       :plot local-nemesis/plot-spec,
        :db (common/db-empty "0.7.0"),
        :client (common/Default-Client. opts
                                        clients-ref
