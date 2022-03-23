@@ -35,6 +35,8 @@
                {:is-valid true, :cur-ref (into [] pushes)}
                (into [] pops))))
 
+(defn is-hserver-node? [node] (in? ["n1" "n2" "n3" "n4" "n5"] node))
+
 (defn is-hstream-client-exception?
   [e]
   (= (-> (Throwable->map e)

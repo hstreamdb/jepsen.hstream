@@ -42,19 +42,22 @@
                            subscription-timeout]
   client/Client
     (open! [this test node]
-      (let [target-node (if (in? ["n1" "n2" "n3" "n4" "n5"] node)
+      (let [target-node (if (is-hserver-node? node)
                           node
                           (rand-nth ["n1" "n2" "n3" "n4" "n5"]))
             service-url (str target-node ":6570")
-            cache-client (get @clients-ref target-node)
-            client (if (nil? cache-client)
-                     (let [got-client (get-client-until-ok service-url)]
-                       (dosync (alter clients-ref assoc target-node got-client))
-                       got-client)
-                     cache-client)]
-        (-> this
-            (assoc :client client
-                   :target-node target-node))))
+            cache-client (get @clients-ref target-node)]
+        (if (nil? cache-client)
+          (let [[got-node got-client] (get-client-start-from-url service-url)]
+            (when (nil? got-client)
+              (throw (Exception. "No available node now!")))
+            (dosync (alter clients-ref assoc got-node got-client))
+            (-> this
+                (assoc :client got-client
+                       :target-node got-node)))
+          (-> this
+              (assoc :client cache-client
+                     :target-node target-node)))))
     (setup! [_ _] (info "-------- SETTING UP DONE ---------"))
     (invoke! [this test op]
       (try
@@ -129,13 +132,7 @@
                   (if (nil? (:retry-times op)) 0 (:retry-times op))]
             (dosync (alter clients-ref dissoc (:target-node this)))
             (if (< old-op-retry-times (:max-retry-times opts))
-              (let [new-target-node
-                      (rand-nth (local-nemesis/find-hserver-alive-nodes test))
-                    new-client (get-client-until-ok (str new-target-node
-                                                         ":6570"))
-                    new-this (-> this
-                                 (assoc :target-node new-target-node
-                                        :client new-client))]
+              (let [new-this (client/open! this test (:target-node this))]
                 (Thread/sleep 10000)
                 (client/invoke! new-this
                                 test
@@ -149,8 +146,7 @@
                 :extra "happened in op"))))))
     (teardown! [_ _])
     (close! [this _]
-      (try (dosync (println ">>> Closing client...") (.close (:client this)))
-           (catch Exception e nil))))
+      (dosync (println ">>> Closing client..."))))
 
 (def cli-opts
   "Additional command line options."
