@@ -34,7 +34,7 @@
   [url]
   (let [all-urls (map #(str % ":6570") ["n1" "n2" "n3" "n4" "n5"])
         other-urls (remove #(= % url) all-urls)]
-    (get-client-among-urls (concat '(url) other-urls))))
+    (get-client-among-urls (cons url other-urls))))
 
 (defn create-stream
   [client stream-name]
