@@ -1,14 +1,10 @@
 (ns jepsen.hstream.client
   (:gen-class)
-  (:require [clojure.string :as str]
-            [clojure.core.reducers :as reducers]
+  (:require [clojure.core.reducers :as reducers]
             [clojure.tools.logging :refer :all]
             [jepsen.hstream.utils :refer :all])
   (:import [io.hstream HStreamClient HStreamClientBuilder ProducerBuilder
-            HRecord HRecordBuilder Subscription RecordId HRecordReceiver
-            ReceivedHRecord Responder Stream Record]
-           [io.hstream.impl HStreamClientBuilderImpl]
-           [java.util.concurrent TimeUnit]))
+            HRecord HRecordBuilder Subscription HRecordReceiver Stream Record]))
 
 (defn get-client
   [url]
