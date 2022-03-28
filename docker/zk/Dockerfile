@@ -19,10 +19,16 @@ RUN sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin yes/g" /etc/ssh
 # Install Jepsen deps
 RUN apt-get install -qy build-essential bzip2 curl dnsutils faketime iproute2 iptables iputils-ping libzip4 logrotate man man-db net-tools ntpdate psmisc python rsyslog sudo tar unzip vim wget ca-certificates
 
-EXPOSE 2188 2888 3888
+# Config for LogDevice
+COPY ./logdevice.json /etc/logdevice.json
 
-CMD sed -i "s/2181/2188/g" /conf/zoo.cfg && \
-    mkdir -p /run/sshd && \
+EXPOSE 2181 2888 3888
+
+CMD mkdir -p /run/sshd && \
     /usr/local/bin/init-ssh && \
     /usr/sbin/sshd && \
-    zkServer.sh start-foreground
+    zkServer.sh start && \
+    MY_IP=$(hostname -I | head -n1 | awk '{print $1;}') && \
+    sed -i "s/172.16.0.10:2181/$MY_IP:2181/g" /etc/logdevice.json && \
+    zkCli.sh create /logdevice.conf "`cat /etc/logdevice.json`" && \
+    tail -f /dev/null

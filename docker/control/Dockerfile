@@ -28,7 +28,7 @@ CMD /init-ssh.sh && \
     cd /home/Work && \
     # For jepsen.write-then-read
     # lein with-profile write-then-read run test \
-    # --node "n1" "n2" "n3" "n4" "n5" "zk" "ld" \
+    # --nodes "ld1,ld2,ld3,ld4,n1,n2,n3,n4,n5,zk" \
     # --ssh-private-key "/root/.ssh/id_rsa" \
     # --dummy false \
     # --rate 100 \
@@ -43,7 +43,7 @@ CMD /init-ssh.sh && \
     # --max-partitions 10 && \
     # For jepsen.husky-test
     lein with-profile husky run test \
-    --node "n1" --node "n2" --node "n3" --node "n4" --node "n5" --node "zk" --node "ld" \
+    --nodes "ld1,ld2,ld3,ld4,n1,n2,n3,n4,n5,zk" \
     --ssh-private-key "/root/.ssh/id_rsa" \
     --dummy false \
     --rate 10 \

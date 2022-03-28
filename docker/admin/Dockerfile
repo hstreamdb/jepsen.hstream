@@ -29,12 +29,11 @@ RUN apt-get install -qy build-essential bzip2 curl dnsutils faketime iproute2 ip
 CMD mkdir -p /run/sshd && \
     /usr/local/bin/init-ssh && \
     /usr/sbin/sshd && \
-    MY_IP=$(hostname -I | head -n1 | awk '{print $1;}') && \
-    mkdir -p /data/store && \
-    echo 1 | tee /data/store/NSHARDS && \
-    logdeviced \
+    ld-admin-server \
         --config-path zk:zookeeper:2181/logdevice.conf \
-        --name $HOSTNAME \
-        --address $MY_IP \
-        --local-log-store-path /data/store \
-        --num-shards 1
+        --enable-maintenance-manager \
+        --maintenance-log-snapshotting \
+        --enable-safety-check-periodic-metadata-update & \
+    sleep 20 && \
+    hadmin store nodes-config bootstrap --metadata-replicate-across node:3 && \
+    tail -f /dev/null

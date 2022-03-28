@@ -37,11 +37,13 @@
 (defn find-hserver-alive-nodes
   [test]
   (into []
-        (filter is-hserver-on-node-alive? (remove #{"zk" "ld"} (:nodes test)))))
+        (filter is-hserver-on-node-alive?
+          (remove #{"zk" "ld1" "ld2" "ld3" "ld4"} (:nodes test)))))
 (defn find-hserver-dead-nodes
   [test]
   (into []
-        (filter is-hserver-on-node-dead? (remove #{"zk" "ld"} (:nodes test)))))
+        (filter is-hserver-on-node-dead?
+          (remove #{"zk" "ld1" "ld2" "ld3" "ld4"} (:nodes test)))))
 
 (defn hserver-killer
   []
@@ -72,7 +74,7 @@
   "Split one node off from the rest.
    It ensures that the loner is always a hserver node."
   [nodes]
-  (let [hserver-nodes (remove #{"zk" "ld"} nodes)
+  (let [hserver-nodes (remove #{"zk" "ld1" "ld2" "ld3" "ld4"} nodes)
         loner (rand-nth hserver-nodes)]
     [[loner] (remove (fn [x] (= x loner)) nodes)]))
 

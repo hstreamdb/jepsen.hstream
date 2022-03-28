@@ -7,8 +7,8 @@ hstream-server \
     --host 0.0.0.0 \
     --port 6570    \
     --address $MY_IP \
-    --store-config /root/logdevice.conf \
-    --zkuri "zookeeper:2188" \
+    --store-config zk:zookeeper:2181/logdevice.conf \
+    --zkuri "zookeeper:2181" \
     --server-id $SERVER_ID \
     --log-level debug \
     --log-with-color \
