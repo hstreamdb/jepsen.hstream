@@ -31,6 +31,22 @@ docker-compose --file ./docker/docker-compose.yml --compatibility -p jepsen up -
 
 and add `--build-arg USE_CHINA_MIRROR=true` when building docker images.
 
+## Check Test Results
+
+The test results will be stored at `./store` directory. Check it manually or by a simple server:
+
+- If you have [`leiningen`](https://leiningen.org/) installed:
+```
+lein with-profile husky run serve
+```
+- If you do not have `leiningen`:
+```
+docker run -t --rm --network host -v $(pwd):/working ardoq/leiningen:jdk11-2.9.4-mp /bin/bash -c "cd /working && lein with-profile husky run serve"
+```
+
+Then browse the results at `localhost:8080`.
+
 ## Customization
 
-In `docker/control/Dockerfile`.
+- Add `HSTREAM_IMAGE` arg on building step to use your own hstream image.
+- Adjust test parameters in `docker/control/Dockerfile`.
