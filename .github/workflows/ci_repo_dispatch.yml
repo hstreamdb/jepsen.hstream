@@ -1,0 +1,48 @@
+name: Jepsen CI on Repository Dispatch
+on:
+  repository_dispatch:
+    branches: [master]
+    types: image_updated
+
+jobs:
+  jepsen-test:
+    runs-on: ubuntu-latest
+    name: The simplest jepsen test for HStreamDB
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: "recursive"
+
+      - name: Prepare environment for test
+        run: |
+          cd ./docker
+          ./init-secret.sh
+
+      - name: Start test cluster & run jepsen test
+        run: |
+          docker-compose --file ./docker/docker-compose.yml --compatibility -p jepsen up --build --abort-on-container-exit --exit-code-from control
+
+      - name: 'Upload Artifact'
+        uses: actions/upload-artifact@v2
+        if: ${{ success() }} || ${{ failure() }}
+        with:
+          name: jepsen-test-result
+          path: |
+            store/HStream
+            !store/latest
+            !store/current
+
+      - name: Post to Slack channel
+        if: ${{ success() }} || ${{ failure() }}
+        run: |
+          if [ "${{ job.status }}" = 'success' ]
+            then JOB_STATUS_EMOJI=':white_check_mark:'
+            else JOB_STATUS_EMOJI=':x:'
+          fi
+          curl                                  \
+            -X POST                             \
+            -H 'Content-Type: application/json' \
+            ${{ secrets.SLACK_WEBHOOK_URL }}    \
+            --data '{"GitHub Action build result": "${{ job.status }} '"$JOB_STATUS_EMOJI"'",
+                     "Commit info": "https://github.com/hstreamdb/hstream/commit/${{ github.event.client_payload.commit_sha }}",
+                     "Action summary": "https://github.com/'"$GITHUB_REPOSITORY"'/actions/runs/'"$GITHUB_RUN_ID"'"}'

@@ -6,7 +6,7 @@ on:
   #  - cron: 0 0/4 * * *
 
 jobs:
-  pre-build:
+  jepsen-test:
     runs-on: ubuntu-latest
     name: The simplest jepsen test for HStreamDB
     steps:
@@ -25,9 +25,11 @@ jobs:
 
       - name: 'Upload Artifact'
         uses: actions/upload-artifact@v2
+        if: ${{ success() }} || ${{ failure() }}
         with:
           name: jepsen-test-result
           path: |
             store/HStream
-            !store/HStream/latest
+            !store/latest
+            !store/current
           retention-days: 7
