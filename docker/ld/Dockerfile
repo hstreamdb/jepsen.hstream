@@ -16,6 +16,9 @@ RUN apt-get -qy update && \
         openssh-server \
         pwgen
 
+# Install Jepsen deps
+RUN apt-get install -qy build-essential bzip2 curl dnsutils faketime iproute2 iptables iputils-ping logrotate man man-db net-tools ntpdate psmisc python rsyslog sudo tar unzip vim wget ca-certificates
+
 # Config Jepsen
 COPY ./init-ssh.sh /usr/local/bin/init-ssh
 RUN chmod +x /usr/local/bin/init-ssh
@@ -23,8 +26,9 @@ RUN chmod +x /usr/local/bin/init-ssh
 # Configure SSHD
 RUN sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin yes/g" /etc/ssh/sshd_config
 
-# Install Jepsen deps
-RUN apt-get install -qy build-essential bzip2 curl dnsutils faketime iproute2 iptables iputils-ping logrotate man man-db net-tools ntpdate psmisc python rsyslog sudo tar unzip vim wget ca-certificates
+# Waiting for admin
+COPY ./wait.sh /usr/local/bin/wait
+RUN chmod +x /usr/local/bin/wait
 
 CMD mkdir -p /run/sshd && \
     /usr/local/bin/init-ssh && \
@@ -32,6 +36,7 @@ CMD mkdir -p /run/sshd && \
     MY_IP=$(hostname -I | head -n1 | awk '{print $1;}') && \
     mkdir -p /data/store && \
     echo 1 | tee /data/store/NSHARDS && \
+    /usr/local/bin/wait && \
     logdeviced \
         --config-path zk:zookeeper:2181/logdevice.conf \
         --name $HOSTNAME \

@@ -26,6 +26,7 @@ CMD /init-ssh.sh && \
     eval `ssh-agent` && \
     ssh-add /root/.ssh/id_rsa && \
     cd /home/Work && \
+    tail -f --retry /var/jepsen/shared/ld-cluster-started | sed '/Bootstraped/ q' && \
     # For jepsen.write-then-read
     # lein with-profile write-then-read run test \
     # --nodes "ld1,ld2,ld3,ld4,n1,n2,n3,n4,n5,zk" \
