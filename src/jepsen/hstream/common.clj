@@ -160,7 +160,7 @@
     :default false :parse-fn read-string :validate
     [#(boolean? %) "Must be a boolean"]]
    [nil "--max-retry-times INT"
-    "The maximum retry times of every operation in the test." :default 10
+    "The maximum retry times of every operation in the test." :default 0
     :parse-fn read-string :validate
     [#(and (number? %) (pos? %)) "Must be a positive number"]]
    [nil "--write-timeout SECOND" "The max time for a single write operation."

@@ -3,7 +3,10 @@
   (:require [jepsen.hstream.husky.utils :refer :all]
             [jepsen.hstream.utils :refer [insert first-index]]
             [jepsen.generator :as gen]
-            [random-string.core :as rs]))
+            [random-string.core :as rs]
+            [jepsen.hstream.generator :as gen+])
+  (:import [jepsen.hstream.generator VecGen])
+  )
 
 ;; Parameters:
 ;; 1. max-streams
@@ -53,12 +56,12 @@
 
 (defn seq-to-generators
   [coll]
-  (map #(case (:f %)
-          :add %
-          :read %
-          :sub (gen/until-ok %)
-          :create (gen/until-ok %))
-    coll))
+  (VecGen. (into [] (map #(case (:f %)
+          :add (gen/until-ok (gen/limit 5 %))
+          :read (gen/until-ok %)
+          :sub (gen/until-ok (gen/limit 5 %))
+          :create (gen/until-ok (gen/limit 5 %)))
+    coll))))
 
 ;; Generate!
 (defn husky-generate
