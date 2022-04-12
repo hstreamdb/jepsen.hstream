@@ -131,15 +131,12 @@
                       (insert acc pos val)))
             sub-inserted
             streams)
-        final-read-patched
-          (let [extra-reads
-                  (map (fn [index]
-                         (husky-gen-read
-                           (nth distinct-read-streams
-                                (- index random-distributed-read-number))
-                           index))
-                    (range random-distributed-read-number max-read-number))]
-            (concat create-inserted extra-reads))]
-    (->> (->> (seq-to-generators final-read-patched)
+        final-reads (map (fn [index]
+                           (husky-gen-read
+                             (nth distinct-read-streams
+                                  (- index random-distributed-read-number))
+                             index))
+                      (range random-distributed-read-number max-read-number))]
+    (->> (->> (seq-to-generators create-inserted)
               (gen/stagger (/ (:rate paras))))
-         (gen/then []))))
+         (gen/then (seq-to-generators final-reads)))))
