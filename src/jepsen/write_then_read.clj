@@ -13,7 +13,8 @@
             [jepsen.hstream.mvar :refer :all]
             [jepsen.hstream.utils :refer :all]
             [random-string.core :as rs]
-            [jepsen.hstream.nemesis :as local-nemesis])
+            [jepsen.hstream.nemesis :as local-nemesis]
+            [jepsen.hstream.net :as net+])
   (:import [jepsen.hstream.common Default-Client]))
 
 ;;;;;;;;;; Global Variables ;;;;;;;;;;
@@ -57,8 +58,8 @@
       opts
       {:pure-generators true,
        :name "HStream",
-       :db
-         (common/db-with-streams-initialized "0.7.0" test-streams),
+       :net net+/iptables+,
+       :db (common/db-with-streams-initialized "0.7.0" test-streams),
        :client (common/Default-Client. opts
                                        clients-ref
                                        subscription-results
