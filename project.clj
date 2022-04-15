@@ -4,12 +4,6 @@
             :url "https://www.eclipse.org/legal/epl-2.0/"}
   :profiles {:write-then-read {:main jepsen.write-then-read},
              :husky {:main jepsen.husky-test}}
-  ; :mirrors {#"clojars" {:name "clojars-ustc",
-  ;                       :url "https://mirrors.ustc.edu.cn/clojars/",
-  ;                       :repo-manager true},
-  ;           #"central" {:name "central-aliyun",
-  ;                       :url "https://maven.aliyun.com/repository/public",
-  ;                       :repo-manager true}}
   :repositories
     [["sonatype-snapshot"
       "https://s01.oss.sonatype.org/content/repositories/snapshots"]]
