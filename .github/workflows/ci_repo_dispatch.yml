@@ -30,8 +30,7 @@ jobs:
           name: jepsen-test-result
           path: |
             store/HStream
-            !store/latest
-            !store/current
+            !store/HStream/latest
 
       - name: Post to Slack channel
         if: ${{ success() }} || ${{ failure() }}
