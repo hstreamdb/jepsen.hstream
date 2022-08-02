@@ -68,9 +68,9 @@
                                         (repeat {:type :info, :f :resume-zk})]))
                                    (gen/stagger (:nemesis-interval opts))
                                    (gen/time-limit
-                                     (+ (* 2 (:max-streams opts))
+                                     (+ (* 10 (:max-streams opts))
                                         (quot (:write-number opts) (:rate opts))
-                                        (:fetch-wait-time opts))))]
+                                        (* 2 (:fetch-wait-time opts)))))]
                         (gen/clients client-gen nemesis-gen))
                       (gen/clients client-gen)))})))
 

@@ -49,7 +49,7 @@ CMD /init-ssh.sh && \
     --dummy false \
     --rate 10 \
     --write-number 2000 \
-    --fetch-wait-time 60 \
+    --fetch-wait-time 180 \
     --concurrency 200 \
     --fetching-number 100 \
     --max-streams 10 \
