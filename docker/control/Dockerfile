@@ -55,6 +55,6 @@ CMD /init-ssh.sh && \
     --max-streams 10 \
     --write-timeout 60 \
     --nemesis-interval 15 \
-    --nemesis-on false \
+    --nemesis-on true \
     --max-partitions 10 && \
     exit
