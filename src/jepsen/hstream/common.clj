@@ -74,7 +74,7 @@
                                     (write-data
                                       producer
                                       test-data
-                                      ;; orderingKey
+                                      ;; partitionKey
                                       (str (mod (+ (:value op)
                                                    (rand-int (:max-partitions
                                                                opts)))
@@ -107,7 +107,7 @@
                    :type :ok
                    :sub-id test-subscription-id
                    :target-node (:target-node this)))
-          :create (do (create-stream (:client this) (:stream op))
+          :create (do (create-stream (:client this) (:stream op) (:max-partitions opts))
                       (assoc op
                         :type :ok
                         :target-node (:target-node this)))

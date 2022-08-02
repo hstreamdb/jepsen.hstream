@@ -34,13 +34,13 @@ CMD /init-ssh.sh && \
     # --dummy false \
     # --rate 100 \
     # --write-time 120 \
-    # --fetch-wait-time 240 \
+    # --fetch-wait-time 120 \
     # --concurrency 150 \
     # --fetching-number 100 \
     # --max-streams 10 \
     # --write-timeout 60 \
     # --nemesis-interval 15 \
-    # --nemesis-on false \
+    # --nemesis-on true \
     # --max-partitions 10 && \
     # For jepsen.husky-test
     lein with-profile husky run test \
@@ -49,12 +49,12 @@ CMD /init-ssh.sh && \
     --dummy false \
     --rate 10 \
     --write-number 2000 \
-    --fetch-wait-time 180 \
+    --fetch-wait-time 60 \
     --concurrency 200 \
     --fetching-number 100 \
     --max-streams 10 \
     --write-timeout 60 \
     --nemesis-interval 15 \
-    --nemesis-on true \
+    --nemesis-on false \
     --max-partitions 10 && \
     exit
