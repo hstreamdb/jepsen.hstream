@@ -1,4 +1,4 @@
-FROM zookeeper:3.7.0
+FROM zookeeper:3.7
 
 ARG USE_CHINA_MIRROR
 
@@ -9,15 +9,15 @@ RUN if [ "$USE_CHINA_MIRROR" = true ] ; then sed -i 's/deb.debian.org/mirrors.us
 RUN apt-get update
 RUN apt-get install -y apt-transport-https openssh-server
 
+# Install Jepsen deps
+RUN apt-get install -qy build-essential bzip2 curl dnsutils faketime iproute2 iptables iputils-ping libzip4 logrotate man man-db net-tools ntpdate psmisc python rsyslog sudo tar unzip vim wget ca-certificates
+
 # Config Jepsen
 COPY ./init-ssh.sh /usr/local/bin/init-ssh
 RUN chmod +x /usr/local/bin/init-ssh
 
 # Configure SSHD
 RUN sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin yes/g" /etc/ssh/sshd_config
-
-# Install Jepsen deps
-RUN apt-get install -qy build-essential bzip2 curl dnsutils faketime iproute2 iptables iputils-ping libzip4 logrotate man man-db net-tools ntpdate psmisc python rsyslog sudo tar unzip vim wget ca-certificates
 
 EXPOSE 2181 2888 3888
 

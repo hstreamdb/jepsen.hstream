@@ -6,10 +6,12 @@ hstream-server \
     --config-path /etc/hstream/config.yaml \
     --host 0.0.0.0 \
     --port 6570    \
+    --internal-port 6571 \
     --address $MY_IP \
     --store-config zk:zookeeper:2181/logdevice.conf \
     --zkuri "zookeeper:2181" \
     --server-id $SERVER_ID \
     --log-level debug \
     --log-with-color \
+    --seed-nodes $MY_IP \
     >/tmp/node.log 2>&1 &

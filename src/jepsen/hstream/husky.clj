@@ -50,16 +50,6 @@
   [stream]
   {:type :invoke, :f :create, :value stream, :stream stream})
 
-
-(defn seq-to-generators
-  [coll]
-  (map #(case (:f %)
-          :add %
-          :read %
-          :sub (gen/until-ok %)
-          :create (gen/until-ok %))
-    coll))
-
 ;; Generate!
 (defn husky-generate
   [paras]
@@ -137,6 +127,6 @@
                                   (- index random-distributed-read-number))
                              index))
                       (range random-distributed-read-number max-read-number))]
-    (->> (->> (seq-to-generators create-inserted)
-              (gen/stagger (/ (:rate paras))))
-         (gen/then (seq-to-generators final-reads)))))
+    (gen/phases (gen-phase-generator create-inserted paras)
+                (gen/sleep (:read-wait-time paras))
+                final-reads)))

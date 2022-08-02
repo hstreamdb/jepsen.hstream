@@ -16,6 +16,9 @@ RUN apt-get -qy update && \
         openssh-server \
         pwgen
 
+# Install Jepsen deps
+RUN apt-get install -qy build-essential bzip2 curl dnsutils faketime iproute2 iptables iputils-ping logrotate man man-db net-tools ntpdate psmisc python rsyslog sudo tar unzip vim wget ca-certificates
+
 # Config services
 COPY setup-services.sh /usr/local/bin/setup-services
 RUN chmod +x /usr/local/bin/setup-services
@@ -27,9 +30,6 @@ RUN  chmod +x /bin/start-hstream-server
 # Configure SSHD
 RUN sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin yes/g" /etc/ssh/sshd_config && \
     sed -i "s/#PasswordAuthentication yes/PasswordAuthentication no/g" /etc/ssh/sshd_config
-
-# Install Jepsen deps
-RUN apt-get install -qy build-essential bzip2 curl dnsutils faketime iproute2 iptables iputils-ping logrotate man man-db net-tools ntpdate psmisc python rsyslog sudo tar unzip vim wget ca-certificates
 
 EXPOSE 22 6570
 

@@ -59,7 +59,8 @@
       {:pure-generators true,
        :name "HStream",
        :net net+/iptables+,
-       :db (common/db-with-streams-initialized "0.7.0" test-streams),
+       :plot local-nemesis/plot-spec,
+       :db (common/db-with-streams-initialized "0.9.0" opts test-streams),
        :client (common/Default-Client. opts
                                        clients-ref
                                        subscription-results

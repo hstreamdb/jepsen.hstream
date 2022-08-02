@@ -33,22 +33,29 @@
     (get-client-among-urls (cons url other-urls))))
 
 (defn create-stream
-  [client stream-name]
-  (HStreamClient/.createStream client stream-name))
+  ([client stream-name]
+   (HStreamClient/.createStream client stream-name))
+  ([client stream-name partitions]
+   (let [replication 1]
+     (HStreamClient/.createStream client stream-name replication partitions))))
 
 (defn list-streams
   [client]
   (map #(Stream/.getStreamName %) (.listStreams client)))
 
 (defn delete-stream
-  [client stream-name]
-  (try (HStreamClient/.deleteStream client stream-name)
-       (catch Exception e nil)))
+  ([client stream-name]
+   (HStreamClient/.deleteStream client stream-name))
+  ([client stream-name force]
+   (HStreamClient/.deleteStream client stream-name force)))
 
 (defn delete-all-streams
-  [client]
-  (let [all-streams (list-streams client)]
-    (dorun (map #(delete-stream client %) all-streams))))
+  ([client]
+   (let [all-streams (list-streams client)]
+     (dorun (map #(delete-stream client %) all-streams))))
+  ([client force]
+   (let [all-streams (list-streams client)]
+     (dorun (map #(delete-stream client % force) all-streams)))))
 
 (defn create-producer
   [client stream-name]
@@ -73,7 +80,7 @@
      (.write producer record)))
   ([producer data-to-write key]
    (let [hrecord (map-to-hrecord data-to-write)
-         record (.build (.hRecord (.orderingKey (Record/newBuilder) key)
+         record (.build (.hRecord (.partitionKey (Record/newBuilder) key)
                                   hrecord))]
      (.write producer record))))
 
@@ -86,7 +93,9 @@
                                timeout))]
     (.createSubscription client subscription)))
 
-(defn unsubscribe [client sub-id] (.deleteSubscription client sub-id))
+(defn unsubscribe
+  ([client sub-id] (.deleteSubscription client sub-id))
+  ([client sub-id force] (.deleteSubscription client sub-id force)))
 
 (defn consume
   [client sub-id callback]

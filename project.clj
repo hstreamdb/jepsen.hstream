@@ -7,10 +7,10 @@
   :repositories
     [["sonatype-snapshot"
       "https://s01.oss.sonatype.org/content/repositories/snapshots"]]
-  :dependencies [[org.clojure/clojure "1.10.3"]
-                 [jepsen "0.2.6"]
+  :dependencies [[org.clojure/clojure "1.11.1"]
+                 [jepsen "0.2.7"]
                  [random-string "0.1.0"]
                  [io.hstream/hstreamdb-java
-                  "0.8.0-SNAPSHOT"
+                  "0.9.0-SNAPSHOT"
                   :exclusions
                   [org.apache.logging.log4j/log4j-slf4j-impl]]])
