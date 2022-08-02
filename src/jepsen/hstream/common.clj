@@ -15,7 +15,7 @@
 (defn db-with-streams-initialized
   "HStream DB for a particular version. Here we use the FIRST
    node to create streams for the whole test."
-  [version streams]
+  [version opts streams]
   (reify
     db/DB
       (setup! [_ test node]
@@ -23,7 +23,7 @@
         (when (= node "n1")
           (let [service-url (str node ":6570")
                 this-client (get-client service-url)]
-            (dosync (dorun (map #(try+ (create-stream this-client %)
+            (dosync (dorun (map #(try+ (create-stream this-client % (:max-partitions opts))
                                        (catch Exception e nil))
                              streams))))))
       (teardown! [_ _ node]
@@ -115,14 +115,16 @@
             (let [is-done (agent false)
                   subscription-result (get subscription-results
                                            (:consumer-id op))
-                  test-subscription-id (str "subscription_" (:stream op))]
-              (consume (:client this)
-                       test-subscription-id
-                       (gen-collect-value-callback subscription-result))
+                  test-subscription-id (str "subscription_" (:stream op))
+                  consumer (consume
+                            (:client this)
+                            test-subscription-id
+                            (gen-collect-value-callback subscription-result))]
               (send-off
                 is-done
                 (fn [_] (Thread/sleep (* 1000 (:fetch-wait-time opts))) true))
               (await is-done)
+              (.awaitTerminated (.stopAsync consumer))
               (assoc op
                 :type :ok
                 :value @subscription-result
