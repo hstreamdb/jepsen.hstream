@@ -58,14 +58,10 @@
                               (->> (gen/phases
                                      (gen/sleep 10)
                                      (gen/mix
-                                       [(repeat {:type :info, :f :start-loss})
-                                        (repeat {:type :info, :f :stop-loss})
-                                        (repeat {:type :info, :f :start-slow})
+                                       [(repeat {:type :info, :f :start-slow})
                                         (repeat {:type :info, :f :stop-slow})
                                         (repeat {:type :info, :f :kill-node})
-                                        (repeat {:type :info, :f :resume-node})
-                                        (repeat {:type :info, :f :isolate-zk})
-                                        (repeat {:type :info, :f :resume-zk})]))
+                                        (repeat {:type :info, :f :resume-node})]))
                                    (gen/stagger (:nemesis-interval opts))
                                    (gen/time-limit
                                      (+ (* 10 (:max-streams opts))
