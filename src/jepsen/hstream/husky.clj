@@ -128,5 +128,4 @@
                              index))
                       (range random-distributed-read-number max-read-number))]
     (gen/phases (gen-phase-generator create-inserted paras)
-                (gen/sleep (:read-wait-time paras))
                 final-reads)))
