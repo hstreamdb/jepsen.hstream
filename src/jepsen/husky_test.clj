@@ -56,7 +56,7 @@
                     (if (:nemesis-on opts)
                       (let [nemesis-gen
                               (->> (gen/phases
-                                     (gen/sleep 10)
+                                     (gen/sleep 15)
                                      (gen/mix
                                        [(repeat {:type :info, :f :start-slow})
                                         (repeat {:type :info, :f :stop-slow})
