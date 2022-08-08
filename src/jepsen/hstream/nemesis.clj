@@ -46,29 +46,30 @@
           (remove #{"zk" "ld1" "ld2" "ld3" "ld4"} (:nodes test)))))
 
 (defn hserver-killer
-  []
-  (reify
-    nemesis/Nemesis
-      (nemesis/setup! [this _] this)
-      (nemesis/invoke! [_ test op]
-        (case (:f op)
-          :kill-node (let [alive-nodes (find-hserver-alive-nodes test)]
-                       (if (<= (count alive-nodes) 1)
-                         (assoc op :value "killing skipped")
-                         (let [node (rand-nth alive-nodes)]
-                           (kill-node node)
-                           (assoc op
-                             :value "killed"
-                             :node node))))
-          :resume-node (let [dead-nodes (find-hserver-dead-nodes test)]
-                         (if (empty? dead-nodes)
-                           (assoc op :value "restarting skipped")
-                           (let [node (rand-nth dead-nodes)]
-                             (restart-node node)
-                             (assoc op
-                               :value "restarted"
-                               :node node))))))
-      (nemesis/teardown! [_ _])))
+  ([] (hserver-killer 1)) ;; default minimal alive nodes is 1
+  ([min-nodes]
+   (reify
+     nemesis/Nemesis
+     (nemesis/setup! [this _] this)
+     (nemesis/invoke! [_ test op]
+       (case (:f op)
+         :kill-node (let [alive-nodes (find-hserver-alive-nodes test)]
+                      (if (<= (count alive-nodes) min-nodes)
+                        (assoc op :value "killing skipped")
+                        (let [node (rand-nth alive-nodes)]
+                          (kill-node node)
+                          (assoc op
+                                 :value "killed"
+                                 :node node))))
+         :resume-node (let [dead-nodes (find-hserver-dead-nodes test)]
+                        (if (empty? dead-nodes)
+                          (assoc op :value "restarting skipped")
+                          (let [node (rand-nth dead-nodes)]
+                            (restart-node node)
+                            (assoc op
+                                   :value "restarted"
+                                   :node node))))))
+     (nemesis/teardown! [_ _]))))
 
 (defn split-one-hserver-node
   "Split one node off from the rest.
@@ -121,7 +122,7 @@
 
 (defn nemesis+
   []
-  (nemesis/compose {#{:kill-node :resume-node} (hserver-killer),
+  (nemesis/compose {#{:kill-node :resume-node} (hserver-killer 3),
                     #{:start-slow :stop-slow} (slower),
                     #{:start-loss :stop-loss} (losser),
                     {:isolate-zk :start, :resume-zk :stop} (zk-nemesis)}))
