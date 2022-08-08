@@ -8,7 +8,6 @@
             [jepsen.hstream.client :refer :all]
             [jepsen.hstream.mvar :refer :all]
             [jepsen.hstream.nemesis :as local-nemesis]
-            [jepsen.hstream.utils :refer :all]
             [slingshot.slingshot :refer [try+]]
             [jepsen.hstream.utils :refer :all]))
 
@@ -134,7 +133,8 @@
                   (if (nil? (:retry-times op)) 0 (:retry-times op))]
             (dosync (alter clients-ref dissoc (:target-node this)))
             (if (< old-op-retry-times (:max-retry-times opts))
-              (let [new-this (client/open! this test (:target-node this))]
+              (let [new-target-node (rand-nth (keys @clients-ref))
+                    new-this (client/open! this test new-target-node)]
                 (Thread/sleep 1000)
                 (client/invoke! new-this
                                 test
