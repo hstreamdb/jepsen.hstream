@@ -10,7 +10,7 @@ RUN apt-get update
 RUN apt-get install -y apt-transport-https openssh-server
 
 # Install Jepsen deps
-RUN apt-get install -qy build-essential bzip2 curl dnsutils faketime iproute2 iptables iputils-ping libzip4 logrotate man man-db net-tools ntpdate psmisc python rsyslog sudo tar unzip vim wget ca-certificates
+RUN apt-get install -qy build-essential bzip2 curl dnsutils faketime iproute2 iptables iputils-ping libzip4 logrotate man man-db net-tools ntpdate psmisc python3 rsyslog sudo tar unzip vim wget ca-certificates
 
 # Config Jepsen
 COPY ./init-ssh.sh /usr/local/bin/init-ssh
