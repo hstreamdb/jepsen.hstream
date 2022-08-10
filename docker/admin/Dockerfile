@@ -34,6 +34,10 @@ RUN chmod +x /usr/local/bin/wait-zk
 COPY ./wait-hstore.sh /usr/local/bin/wait-hstore
 RUN chmod +x /usr/local/bin/wait-hstore
 
+# Waiting for hservers
+COPY ./wait-hservers.sh /usr/local/bin/wait-hservers
+RUN chmod +x /usr/local/bin/wait-hservers
+
 # Config for LogDevice
 COPY ./logdevice.json /etc/logdevice.json
 
@@ -51,5 +55,7 @@ CMD mkdir -p /run/sshd && \
         --enable-safety-check-periodic-metadata-update & \
     /usr/local/bin/wait-hstore && \
     hadmin store nodes-config bootstrap --metadata-replicate-across node:3 && \
-    echo "Bootstraped" > /var/jepsen/shared/ld-cluster-started && \
+    /usr/local/bin/wait-hservers && \
+    hadmin server --host hserver-1 init && \
+    echo "Bootstraped" > /var/jepsen/shared/hserver-cluster-started && \
     tail -f /dev/null
