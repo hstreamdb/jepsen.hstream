@@ -38,7 +38,7 @@
         (info node ">>> Tearing down DB: HStream" version))))
 
 (defrecord Default-Client [opts clients-ref subscription-results
-                           subscription-timeout]
+                           subscription-ack-timeout]
   client/Client
     (open! [this test node]
       (let [target-node (if (is-hserver-node? node)
@@ -101,7 +101,7 @@
                  (subscribe (:client this)
                             test-subscription-id
                             (:stream op)
-                            subscription-timeout)
+                            subscription-ack-timeout)
                  (assoc op
                    :type :ok
                    :sub-id test-subscription-id

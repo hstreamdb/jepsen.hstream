@@ -25,7 +25,7 @@
   20)
 
 ;; Read: Subscriptions & Related Data
-(def subscription-timeout "The timeout of subscriptions in SECOND." 600)
+(def subscription-ack-timeout "The timeout of ack in SECOND." 5)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -64,7 +64,7 @@
        :client (common/Default-Client. opts
                                        clients-ref
                                        subscription-results
-                                       subscription-timeout),
+                                       subscription-ack-timeout),
        :nemesis (local-nemesis/nemesis+),
        :ssh {:dummy? (:dummy opts)},
        :checker (checker/compose {:set (local-checker/set+),

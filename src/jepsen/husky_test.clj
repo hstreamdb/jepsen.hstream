@@ -25,7 +25,7 @@
   (let [clients-ref (ref {})
         subscription-results
           (into [] (repeatedly (:fetching-number opts) #(ref [])))
-        subscription-timeout 600]
+        subscription-ack-timeout 5]
     (merge
       tests/noop-test
       opts
@@ -37,7 +37,7 @@
        :client (common/Default-Client. opts
                                        clients-ref
                                        subscription-results
-                                       subscription-timeout),
+                                       subscription-ack-timeout),
        :nemesis (local-nemesis/nemesis+),
        :ssh {:dummy? (:dummy opts)},
        :checker (checker/compose {:set (local-checker/set+),
