@@ -19,5 +19,4 @@ Wait_Until_Open () {
 Wait_Until_Open hstore-1 6440
 Wait_Until_Open hstore-2 6440
 Wait_Until_Open hstore-3 6440
-Wait_Until_Open hstore-4 6440
 sleep 5 # In case of the hstore node is not ready although its port is open
