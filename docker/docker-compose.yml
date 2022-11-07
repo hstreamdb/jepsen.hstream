@@ -57,6 +57,7 @@ secrets:
 
 networks:
   jepsen:
+    driver: bridge
 
 services:
   ld-admin:
@@ -147,12 +148,6 @@ services:
     hostname: ld3
     depends_on:
       - zookeeper
-  hstore-4:
-    << : *logdevice-node
-    container_name: jepsen-ld4
-    hostname: ld4
-    depends_on:
-      - zookeeper
 
   hserver-1:
     << : *hserver-node
@@ -163,7 +158,6 @@ services:
       - hstore-1
       - hstore-2
       - hstore-3
-      - hstore-4
   hserver-2:
     << : *hserver-node
     container_name: jepsen-n2
@@ -173,7 +167,6 @@ services:
       - hstore-1
       - hstore-2
       - hstore-3
-      - hstore-4
   hserver-3:
     << : *hserver-node
     container_name: jepsen-n3
@@ -183,7 +176,6 @@ services:
       - hstore-1
       - hstore-2
       - hstore-3
-      - hstore-4
   hserver-4:
     << : *hserver-node
     container_name: jepsen-n4
@@ -193,7 +185,6 @@ services:
       - hstore-1
       - hstore-2
       - hstore-3
-      - hstore-4
   hserver-5:
     << : *hserver-node
     container_name: jepsen-n5
@@ -203,4 +194,3 @@ services:
       - hstore-1
       - hstore-2
       - hstore-3
-      - hstore-4

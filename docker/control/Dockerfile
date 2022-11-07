@@ -29,7 +29,7 @@ CMD /init-ssh.sh && \
     tail -f --retry /var/jepsen/shared/hserver-cluster-started | sed '/Bootstraped/ q' && \
     # For jepsen.write-then-read
     # lein with-profile write-then-read run test \
-    # --nodes "ld1,ld2,ld3,ld4,n1,n2,n3,n4,n5,zk" \
+    # --nodes "ld1,ld2,ld3,n1,n2,n3,n4,n5,zk" \
     # --ssh-private-key "/root/.ssh/id_rsa" \
     # --dummy false \
     # --rate 100 \
@@ -44,7 +44,7 @@ CMD /init-ssh.sh && \
     # --max-partitions 10 && \
     # For jepsen.husky-test
     lein with-profile husky run test \
-    --nodes "ld1,ld2,ld3,ld4,n1,n2,n3,n4,n5,zk" \
+    --nodes "ld1,ld2,ld3,n1,n2,n3,n4,n5,zk" \
     --ssh-private-key "/root/.ssh/id_rsa" \
     --dummy false \
     --rate 10 \
