@@ -1,9 +1,9 @@
 (ns jepsen.hstream.husky
   (:gen-class)
   (:require [jepsen.hstream.husky.utils :refer :all]
-            [jepsen.hstream.utils :refer [insert first-index]]
-            [jepsen.generator :as gen]
-            [random-string.core :as rs]))
+            [jepsen.hstream.utils :refer
+             [insert first-index random-stream-name]]
+            [jepsen.generator :as gen]))
 
 ;; Parameters:
 ;; 1. max-streams
@@ -58,7 +58,7 @@
         max-write-number (:max-write-number paras)
         max-read-number (:max-read-number paras)
         ;; Randomly generated streams and related variables
-        streams (repeatedly max-streams #(rs/string 10))
+        streams (repeatedly max-streams #(random-stream-name 10))
         read-streams (repeatedly max-read-number #(rand-nth streams))
         distinct-read-streams (distinct read-streams)
         distinct-read-stream-number (count distinct-read-streams)
@@ -127,5 +127,4 @@
                                   (- index random-distributed-read-number))
                              index))
                       (range random-distributed-read-number max-read-number))]
-    (gen/phases (gen-phase-generator create-inserted paras)
-                final-reads)))
+    (gen/phases (gen-phase-generator create-inserted paras) final-reads)))

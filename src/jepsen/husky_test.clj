@@ -12,7 +12,6 @@
             [jepsen.hstream.husky :as husky]
             [jepsen.hstream.mvar :refer :all]
             [jepsen.hstream.utils :refer :all]
-            [random-string.core :as rs]
             [jepsen.hstream.nemesis :as local-nemesis]
             [jepsen.hstream.net :as net+])
   (:import [jepsen.hstream.common Default-Client]))

@@ -1,5 +1,8 @@
-(ns jepsen.hstream.utils (:gen-class))
+(ns jepsen.hstream.utils
+  (:gen-class)
+  (:require [random-string.core :as rs]))
 
+;;;; I. Clojure common helper functions
 (defn in? "true if coll contains elm" [coll elm] (some #(= elm %) coll))
 
 (defn insert [v i e] (vec (concat (subvec v 0 i) [e] (subvec v i))))
@@ -34,6 +37,12 @@
                            acc)))
                {:is-valid true, :cur-ref (into [] pushes)}
                (into [] pops))))
+
+;;;; II. HStream helper functions
+(defn random-stream-name
+  [length-except-prefix]
+  (let [prefix "stream_"]
+    (str prefix (rs/string length-except-prefix))))
 
 (defn is-hserver-node? [node] (in? ["n1" "n2" "n3" "n4" "n5"] node))
 
