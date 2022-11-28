@@ -12,7 +12,6 @@
             [jepsen.hstream.husky :refer :all]
             [jepsen.hstream.mvar :refer :all]
             [jepsen.hstream.utils :refer :all]
-            [random-string.core :as rs]
             [jepsen.hstream.nemesis :as local-nemesis]
             [jepsen.hstream.net :as net+])
   (:import [jepsen.hstream.common Default-Client]))
@@ -50,7 +49,8 @@
         ; "The random-named stream names. It is a vector of strings."
         test-streams (into []
                            (repeatedly (:max-streams opts)
-                                       #(rs/string test-stream-name-length)))
+                                       #(random-stream-name
+                                          test-stream-name-length)))
         subscription-results
           (into [] (repeatedly (:fetching-number opts) #(ref [])))]
     (merge
