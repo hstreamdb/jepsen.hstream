@@ -21,14 +21,16 @@
             (let [[_ target-client] acc]
               (if (nil? target-client)
                 (try (let [client (get-client url)] [url client])
-                     (catch Exception e [url nil]))
+                     (catch Exception e
+                       (do (println "===> Get client error: " e)
+                           [url nil])))
                 acc)))
     [(first urls) nil]
     urls))
 
 (defn get-client-start-from-url
   [url]
-  (let [all-urls (map #(str % ":6570") ["n1" "n2" "n3" "n4" "n5"])
+  (let [all-urls (map #(str "hstream://" % ":6570") ["n1" "n2" "n3" "n4" "n5"])
         other-urls (remove #(= % url) all-urls)]
     (get-client-among-urls (cons url other-urls))))
 

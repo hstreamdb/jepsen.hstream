@@ -20,7 +20,7 @@
       (setup! [_ test node]
         (info node ">>> Setting up DB: HStream" version)
         (when (= node "n1")
-          (let [service-url (str node ":6570")
+          (let [service-url (str "hstream://" node ":6570")
                 this-client (get-client service-url)]
             (dosync (dorun (map #(try+ (create-stream this-client % (:max-partitions opts))
                                        (catch Exception e nil))
@@ -44,7 +44,7 @@
       (let [target-node (if (is-hserver-node? node)
                           node
                           (rand-nth ["n1" "n2" "n3" "n4" "n5"]))
-            service-url (str target-node ":6570")
+            service-url (str "hstream://" target-node ":6570")
             cache-client (get @clients-ref target-node)]
         (if (nil? cache-client)
           (let [[got-node got-client] (get-client-start-from-url service-url)]
