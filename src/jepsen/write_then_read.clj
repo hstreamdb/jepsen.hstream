@@ -60,7 +60,7 @@
        :name "HStream",
        :net net+/iptables+,
        :plot local-nemesis/plot-spec,
-       :db (common/db-with-streams-initialized "0.9.0" opts test-streams),
+       :db (common/db-with-streams-initialized "0.12.0" opts test-streams),
        :client (common/Default-Client. opts
                                        clients-ref
                                        subscription-results
