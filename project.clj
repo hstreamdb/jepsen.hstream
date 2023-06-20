@@ -13,4 +13,5 @@
                  [io.hstream/hstreamdb-java
                   "0.16.0-SNAPSHOT"
                   :exclusions
-                  [org.apache.logging.log4j/log4j-slf4j-impl]]])
+                  [org.apache.logging.log4j/log4j-slf4j-impl
+                   org.apache.logging.log4j/Log4jLogger]]])
