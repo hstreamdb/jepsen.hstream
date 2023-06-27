@@ -21,8 +21,7 @@
   "Given an options map from the command-line runner (e.g. :nodes, :ssh,
   :concurrency, ...), constructs a test map."
   [opts]
-  (let [clients-ref (ref {})
-        subscription-results
+  (let [subscription-results
           (into [] (repeatedly (:fetching-number opts) #(ref [])))
         subscription-ack-timeout 5]
     (merge
@@ -32,9 +31,8 @@
        :name "HStream",
        :net net+/iptables+,
        :plot local-nemesis/plot-spec,
-       :db (common/db-empty "0.12.0"),
+       :db (common/db-empty "0.15.0"),
        :client (common/Default-Client. opts
-                                       clients-ref
                                        subscription-results
                                        subscription-ack-timeout),
        :nemesis (local-nemesis/nemesis+),
