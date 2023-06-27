@@ -1,13 +1,15 @@
 ARG HSTREAM_IMAGE="hstreamdb/hstream:latest"
 FROM ${HSTREAM_IMAGE}
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 ARG USE_CHINA_MIRROR
 # Mirror
 RUN if [ "$USE_CHINA_MIRROR" = true ] ; then sed -i 's/archive.ubuntu.com/mirrors.ustc.edu.cn/g' /etc/apt/sources.list ; fi
 
 # Basic system stuff
-RUN apt-get update
-RUN apt-get install -y apt-transport-https
+RUN apt-get -qy update && \
+    apt-get -qy install apt-transport-https
 
 # Install packages
 RUN apt-get -qy update && \
