@@ -71,16 +71,15 @@
               reads-overlap
                 (map-value
                   #(:intersection
-                     (reduce
-                       (fn [acc x]
-                         (let [union (:union acc)
-                               intersection (:intersection acc)
-                               new-intersection (set/intersection union
-                                                                  (into #{} x))
-                               new-union (set/union union (into #{} x))]
-                           {:union new-union,
-                            :intersection (set/union intersection
-                                                     new-intersection)}))
+                     (reduce (fn [acc x]
+                               (let [union (:union acc)
+                                     intersection (:intersection acc)
+                                     new-intersection
+                                       (set/intersection union (into #{} x))
+                                     new-union (set/union union (into #{} x))]
+                                 {:union new-union,
+                                  :intersection (set/union intersection
+                                                           new-intersection)}))
                        {:union #{}, :intersection #{}}
                        %))
                   reads-raw)]
@@ -95,14 +94,14 @@
                                                            (into #{} v2))]))
                                    attempts))
                   ;; {stream #{value}}
-                  read-correct
-                    (into {}
-                          (map (fn [[k1 v1]]
-                                 (let [v2 (get adds k1)]
-                                   [k1
-                                    (set/intersection (into #{} v1)
-                                                      (into #{} v2))]))
-                            reads))
+                  read-correct (into {}
+                                     (map (fn [[k1 v1]]
+                                            (let [v2 (get adds k1)]
+                                              [k1
+                                               (set/intersection (into #{} v1)
+                                                                 (into #{}
+                                                                       v2))]))
+                                       reads))
                   ;; {stream #{value}}
                   read-lost (into {}
                                   (map (fn [[k1 v1]]
@@ -112,14 +111,14 @@
                                                             (into #{} v1))]))
                                     reads))
                   ;; {stream #{value}}
-                  read-unexpected
-                    (into
-                      {}
-                      (map (fn [[k1 v1]]
-                             (let [v2 (get attempts k1)]
-                               [k1
-                                (set/difference (into #{} v1) (into #{} v2))]))
-                        reads))
+                  read-unexpected (into {}
+                                        (map (fn [[k1 v1]]
+                                               (let [v2 (get attempts k1)]
+                                                 [k1
+                                                  (set/difference (into #{} v1)
+                                                                  (into #{}
+                                                                        v2))]))
+                                          reads))
                   ; The basic requirement is that the order of messages read
                   ; from DB
                   ; follows the one when the `add` operations were **DONE**.
