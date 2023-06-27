@@ -4,7 +4,8 @@
     "enable-node-self-registration": "true",
     "enable-nodes-configuration-manager": "true",
     "use-nodes-configuration-manager-nodes-configuration": "true",
-    "enable-cluster-maintenance-state-machine": "true"
+    "enable-cluster-maintenance-state-machine": "true",
+    "rocksdb-memtable-size-per-node": "1024M"
   },
   "client_settings": {
     "enable-nodes-configuration-manager": "true",
