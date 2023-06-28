@@ -45,8 +45,7 @@
   "Given an options map from the command-line runner (e.g. :nodes, :ssh,
   :concurrency, ...), constructs a test map."
   [opts]
-  (let [clients-ref (ref {})
-        ; "The random-named stream names. It is a vector of strings."
+  (let [; "The random-named stream names. It is a vector of strings."
         test-streams (into []
                            (repeatedly (:max-streams opts)
                                        #(random-stream-name
@@ -60,9 +59,8 @@
        :name "HStream",
        :net net+/iptables+,
        :plot local-nemesis/plot-spec,
-       :db (common/db-with-streams-initialized "0.12.0" opts test-streams),
+       :db (common/db-with-streams-initialized "0.15.0" opts test-streams),
        :client (common/Default-Client. opts
-                                       clients-ref
                                        subscription-results
                                        subscription-ack-timeout),
        :nemesis (local-nemesis/nemesis+),

@@ -1,13 +1,16 @@
 FROM zookeeper:3.7
 
-ARG USE_CHINA_MIRROR
+ENV DEBIAN_FRONTEND=noninteractive
 
+ARG USE_CHINA_MIRROR
 # Mirror
 RUN if [ "$USE_CHINA_MIRROR" = true ] ; then sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && sed -i 's|security.debian.org/debian-security|mirrors.ustc.edu.cn/debian-security|g' /etc/apt/sources.list ; fi
 
 # Basic system stuff
-RUN apt-get update
-RUN apt-get install -y apt-transport-https openssh-server
+RUN apt-get -qy update && \
+    apt-get -qy install \
+        apt-transport-https \
+        openssh-server
 
 # Install Jepsen deps
 RUN apt-get install -qy build-essential bzip2 curl dnsutils faketime iproute2 iptables iputils-ping libzip4 logrotate man man-db net-tools ntpdate psmisc python3 rsyslog sudo tar unzip vim wget ca-certificates

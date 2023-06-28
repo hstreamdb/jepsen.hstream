@@ -8,7 +8,7 @@
     [["sonatype-snapshot"
       "https://s01.oss.sonatype.org/content/repositories/snapshots"]]
   :dependencies [[org.clojure/clojure "1.11.1"]
-                 [jepsen "0.3.0"]
+                 [jepsen "0.3.2"]
                  [random-string "0.1.0"]
                  [io.hstream/hstreamdb-java
                   "0.16.0-SNAPSHOT"

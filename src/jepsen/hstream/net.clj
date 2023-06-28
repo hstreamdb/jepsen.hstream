@@ -29,42 +29,42 @@
                          (su (exec :iptables :-F :-w)
                              (exec :iptables :-X :-w))))
       (slow! [net test]
-        (with-test-nodes
-          test
-          (try (su (exec tc
-                         :qdisc
-                         :add :dev
-                         :eth0 :root
-                         :netem :delay
-                         :50ms :10ms
-                         :distribution :normal))
-               (catch RuntimeException e
-                 (if (re-find #"Exclusivity flag on, cannot modify"
-                              (.getMessage e))
-                   nil
-                   (throw e))))))
+        (with-test-nodes test
+                         (try (su (exec tc
+                                        :qdisc
+                                        :add :dev
+                                        :eth0 :root
+                                        :netem :delay
+                                        :50ms :10ms
+                                        :distribution :normal))
+                              (catch RuntimeException e
+                                (if (re-find
+                                      #"Exclusivity flag on, cannot modify"
+                                      (.getMessage e))
+                                  nil
+                                  (throw e))))))
       (slow! [net test
               {:keys [mean variance distribution],
                :or {mean 50, variance 10, distribution :normal}}]
-        (with-test-nodes
-          test
-          (try (su (exec tc
-                         :qdisc
-                         :add
-                         :dev
-                         :eth0
-                         :root
-                         :netem
-                         :delay
-                         (str mean "ms")
-                         (str variance "ms")
-                         :distribution
-                         distribution))
-               (catch RuntimeException e
-                 (if (re-find #"Exclusivity flag on, cannot modify"
-                              (.getMessage e))
-                   nil
-                   (throw e))))))
+        (with-test-nodes test
+                         (try (su (exec tc
+                                        :qdisc
+                                        :add
+                                        :dev
+                                        :eth0
+                                        :root
+                                        :netem
+                                        :delay
+                                        (str mean "ms")
+                                        (str variance "ms")
+                                        :distribution
+                                        distribution))
+                              (catch RuntimeException e
+                                (if (re-find
+                                      #"Exclusivity flag on, cannot modify"
+                                      (.getMessage e))
+                                  nil
+                                  (throw e))))))
       (flaky! [net test]
         (with-test-nodes
           test

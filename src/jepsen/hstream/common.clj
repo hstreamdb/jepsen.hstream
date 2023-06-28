@@ -1,6 +1,7 @@
 (ns jepsen.hstream.common
   (:gen-class)
-  (:require [clojure.stacktrace :refer [e]]
+  (:require [clojure.pprint :refer [pprint]]
+            [clojure.stacktrace :refer [e]]
             [clojure.tools.logging :refer :all]
             [jepsen [db :as db] [cli :as cli] [checker :as checker]
              [client :as client] [generator :as gen] [nemesis :as nemesis]
@@ -21,8 +22,11 @@
         (info node ">>> Setting up DB: HStream" version)
         (when (= node "n1")
           (let [service-url (str "hstream://" node ":6570")
-                this-client (get-client service-url)]
-            (dosync (dorun (map #(try+ (create-stream this-client % (:max-partitions opts))
+                this-client (get-client service-url
+                                        (* 1000 (:grpc-timeout opts)))]
+            (dosync (dorun (map #(try+ (create-stream this-client
+                                                      %
+                                                      (:max-partitions opts))
                                        (catch Exception e nil))
                              streams))))))
       (teardown! [_ _ node]
@@ -37,28 +41,24 @@
       (teardown! [_ _ node]
         (info node ">>> Tearing down DB: HStream" version))))
 
-(defrecord Default-Client [opts clients-ref subscription-results
-                           subscription-ack-timeout]
+(defrecord Default-Client [opts subscription-results subscription-ack-timeout]
   client/Client
     (open! [this test node]
       (let [target-node (if (is-hserver-node? node)
                           node
-                          (rand-nth ["n1" "n2" "n3" "n4" "n5"]))
-            service-url (str "hstream://" target-node ":6570")
-            cache-client (get @clients-ref target-node)]
-        (if (nil? cache-client)
-          (let [[got-node got-client] (get-client-start-from-url service-url)]
-            (when (nil? got-client)
-              (throw (Exception. "No available node now!")))
-            (dosync (alter clients-ref assoc got-node got-client))
-            (-> this
-                (assoc :client got-client
-                       :target-node got-node)))
+                          (rand-nth (local-nemesis/find-hserver-alive-nodes
+                                      test)))
+            service-url (str "hstream://" target-node ":6570")]
+        (info "+++++++++ open with" node "(actual" target-node ") +++++++++")
+        (let [[got-node got-client] (get-client-start-from-url
+                                      service-url
+                                      (* 1000 (:grpc-timeout opts)))]
+          (when (nil? got-client) (throw (Exception. "No available node now!")))
           (-> this
-              (assoc :client cache-client
-                     :target-node target-node)))))
+              (assoc :client got-client
+                     :target-node got-node)))))
     (setup! [_ _] (info "-------- SETTING UP DONE ---------"))
-    (invoke! [this test op]
+    (invoke! [this _ op]
       (try
         (case (:f op)
           :add (let [is-done (agent nil)
@@ -80,7 +80,7 @@
                                                 (:max-partitions opts)))))]
                             (.join write-future)
                             {:status :done, :details nil})
-                          (catch Exception e {:status :retry, :exception e}))))
+                          (catch Exception e {:status :error, :details e}))))
                  (if (await-for (* 1000 (:write-timeout opts)) is-done)
                    (let [done-result @is-done]
                      (case (:status done-result)
@@ -89,10 +89,10 @@
                                :target-node (:target-node this))
                        :error (assoc op
                                 :type :fail
-                                :error (:details done-result)
+                                :error (pprint (Throwable->map (:details
+                                                                 done-result)))
                                 :target-node (:target-node this)
-                                :extra "happened in send-off")
-                       :retry (throw (:exception done-result))))
+                                :extra "happened in send-off")))
                    (assoc op
                      :type :fail
                      :error :unknown-timeout
@@ -106,52 +106,50 @@
                    :type :ok
                    :sub-id test-subscription-id
                    :target-node (:target-node this)))
-          :create (do (create-stream (:client this) (:stream op) (:max-partitions opts))
+          :create (do (create-stream (:client this)
+                                     (:stream op)
+                                     (:max-partitions opts))
+                      (Thread/sleep (* 1000 5)) ;; Very important: wait for the
+                      ;; stream to be ready. Or
+                      ;; creating subs will be very
+                      ;; slow!
                       (assoc op
                         :type :ok
                         :target-node (:target-node this)))
-          :read
-            (let [is-done (agent false)
-                  subscription-result (get subscription-results
-                                           (:consumer-id op))
-                  test-subscription-id (str "subscription_" (:stream op))
-                  consumer (consume
-                            (:client this)
-                            test-subscription-id
-                            (gen-collect-value-callback subscription-result))]
-              (send-off
-                is-done
-                (fn [_] (Thread/sleep (* 1000 (:fetch-wait-time opts))) true))
-              (await is-done)
-              (.awaitTerminated (.stopAsync consumer))
-              (assoc op
-                :type :ok
-                :value @subscription-result
-                :target-node (:target-node this))))
+          :read (let [is-done (agent false)
+                      subscription-result (get subscription-results
+                                               (:consumer-id op))
+                      test-subscription-id (str "subscription_" (:stream op))
+                      consumer (consume (:client this)
+                                        test-subscription-id
+                                        (gen-collect-value-callback
+                                          subscription-result))]
+                  (send-off is-done
+                            (fn [_]
+                              (Thread/sleep (* 1000 (:fetch-wait-time opts)))
+                              true))
+                  (await is-done)
+                  (.awaitTerminated (.stopAsync consumer))
+                  (assoc op
+                    :type :ok
+                    :value @subscription-result
+                    :target-node (:target-node this))))
         (catch Exception e
-          (let [old-op-retry-times
-                  (if (nil? (:retry-times op)) 0 (:retry-times op))]
-            (dosync (alter clients-ref dissoc (:target-node this)))
-            (if (< old-op-retry-times (:max-retry-times opts))
-              (let [new-target-node (rand-nth (keys @clients-ref))
-                    new-this (client/open! this test new-target-node)]
-                (Thread/sleep 1000)
-                (client/invoke! new-this
-                                test
-                                (assoc op
-                                  :retry? true
-                                  :retry-times (+ 1 old-op-retry-times))))
-              (assoc op
-                :type :fail
-                :error (Throwable->map e)
-                :target-node (:target-node this)
-                :extra "happened in op"))))))
-    (teardown! [_ _])
-    (close! [this _] (dosync (println ">>> Closing client..."))))
+          (assoc op
+            :type :fail
+            :error (pprint (Throwable->map e))
+            :target-node (:target-node this)
+            :extra "happened in op"))))
+    (teardown! [_ _] (info "++++++++++++++++ teardown! ++++++++++++++++"))
+    (close! [this _]
+      (dosync (println ">>> Closing client...") (.close (:client this)))))
 
 (def cli-opts
   "Additional command line options."
-  [["-r" "--rate HZ" "Approximate number of requests per second, per thread."
+  [[nil "--grpc-timeout SECOND" "The timeout of gRPC client." :default 5
+    :parse-fn read-string :validate
+    [#(and (number? %) (pos? %)) "Must be a positive number"]]
+   ["-r" "--rate HZ" "Approximate number of requests per second, per thread."
     :default 10 :parse-fn read-string :validate
     [#(and (number? %) (pos? %)) "Must be a positive number"]]
    ["-f" "--fetch-wait-time SECOND"
@@ -161,10 +159,6 @@
    [nil "--dummy BOOL" "Whether to use dummy ssh connection for local test."
     :default false :parse-fn read-string :validate
     [#(boolean? %) "Must be a boolean"]]
-   [nil "--max-retry-times INT"
-    "The maximum retry times of every operation in the test." :default 10
-    :parse-fn read-string :validate
-    [#(and (number? %) (pos? %)) "Must be a positive number"]]
    [nil "--write-timeout SECOND" "The max time for a single write operation."
     :default 10 :parse-fn read-string :validate
     [#(and (number? %) (pos? %)) "Must be a positive number"]]

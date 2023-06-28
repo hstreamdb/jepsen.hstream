@@ -38,17 +38,11 @@
 
 ;;;;
 
-(defn is-sub-gen?
-  [gen]
-  (= (:f gen) :sub))
+(defn is-sub-gen? [gen] (= (:f gen) :sub))
 
-(defn is-create-gen?
-  [gen]
-  (= (:f gen) :create))
+(defn is-create-gen? [gen] (= (:f gen) :create))
 
-(defn is-phases-gen?
-  [gen]
-  (or (is-create-gen? gen) (is-sub-gen? gen)))
+(defn is-phases-gen? [gen] (or (is-create-gen? gen) (is-sub-gen? gen)))
 
 (defn gen-phase-generator
   [coll paras]
@@ -56,7 +50,7 @@
     (if (nil? index)
       (->> coll
            (gen/stagger (/ (:rate paras))))
-      (let [first-half  (take index coll)
+      (let [first-half (take index coll)
             second-half (drop (+ 1 index) coll)]
         (if (empty? first-half)
           (if (empty? second-half)
@@ -64,8 +58,7 @@
             (gen/phases (nth coll index)
                         (gen-phase-generator second-half paras)))
           (if (empty? second-half)
-            (gen/phases (gen-phase-generator first-half paras)
-                        (nth coll index))
+            (gen/phases (gen-phase-generator first-half paras) (nth coll index))
             (gen/phases (gen-phase-generator first-half paras)
                         (nth coll index)
                         (gen-phase-generator second-half paras))))))))

@@ -1,5 +1,5 @@
 (ns jepsen.hstream.client
-  (:gen-class)
+  ;;  (:gen-class)
   (:require [clojure.core.reducers :as reducers]
             [clojure.tools.logging :refer :all]
             [jepsen.hstream.utils :refer :all])
@@ -7,36 +7,58 @@
             HRecord HRecordBuilder Subscription HRecordReceiver Stream Record]))
 
 (defn get-client
-  [url]
-  (.build (HStreamClientBuilder/.serviceUrl (HStreamClient/builder) url)))
+  ([url]
+   (.build (.requestTimeoutMs
+             (HStreamClientBuilder/.serviceUrl (HStreamClient/builder) url)
+             5000)))
+  ([url timeout]
+   (.build (.requestTimeoutMs
+             (HStreamClientBuilder/.serviceUrl (HStreamClient/builder) url)
+             timeout))))
 
 (defn get-client-until-ok
-  [url]
-  (try (get-client url)
-       (catch Exception e (do (Thread/sleep 1000) (get-client-until-ok url)))))
+  ([url]
+   (try (get-client url)
+        (catch Exception e (do (Thread/sleep 1000) (get-client-until-ok url)))))
+  ([url timeout]
+   (try (get-client url timeout)
+        (catch Exception e
+          (do (Thread/sleep 1000) (get-client-until-ok url timeout))))))
 
 (defn get-client-among-urls
-  [urls]
-  (reduce (fn [acc url]
-            (let [[_ target-client] acc]
-              (if (nil? target-client)
-                (try (let [client (get-client url)] [url client])
-                     (catch Exception e
-                       (do (println "===> Get client error: " e)
-                           [url nil])))
-                acc)))
-    [(first urls) nil]
-    urls))
+  ([urls]
+   (reduce (fn [acc url]
+             (let [[_ target-client] acc]
+               (if (nil? target-client)
+                 (try (let [client (get-client url)] [url client])
+                      (catch Exception e
+                        (do (println "===> Get client error: " e) [url nil])))
+                 acc)))
+     [(first urls) nil]
+     urls))
+  ([urls timeout]
+   (reduce (fn [acc url]
+             (let [[_ target-client] acc]
+               (if (nil? target-client)
+                 (try (let [client (get-client url timeout)] [url client])
+                      (catch Exception e
+                        (do (println "===> Get client error: " e) [url nil])))
+                 acc)))
+     [(first urls) nil]
+     urls)))
 
 (defn get-client-start-from-url
-  [url]
-  (let [all-urls (map #(str "hstream://" % ":6570") ["n1" "n2" "n3" "n4" "n5"])
-        other-urls (remove #(= % url) all-urls)]
-    (get-client-among-urls (cons url other-urls))))
+  ([url]
+   (let [all-urls (map #(str "hstream://" % ":6570") ["n1" "n2" "n3" "n4" "n5"])
+         other-urls (remove #(= % url) all-urls)]
+     (get-client-among-urls (cons url other-urls))))
+  ([url timeout]
+   (let [all-urls (map #(str "hstream://" % ":6570") ["n1" "n2" "n3" "n4" "n5"])
+         other-urls (remove #(= % url) all-urls)]
+     (get-client-among-urls (cons url other-urls) timeout))))
 
 (defn create-stream
-  ([client stream-name]
-   (HStreamClient/.createStream client stream-name))
+  ([client stream-name] (HStreamClient/.createStream client stream-name))
   ([client stream-name partitions]
    (let [replication 1]
      (HStreamClient/.createStream client stream-name replication partitions))))
@@ -46,8 +68,7 @@
   (map #(Stream/.getStreamName %) (.listStreams client)))
 
 (defn delete-stream
-  ([client stream-name]
-   (HStreamClient/.deleteStream client stream-name))
+  ([client stream-name] (HStreamClient/.deleteStream client stream-name))
   ([client stream-name force]
    (HStreamClient/.deleteStream client stream-name force)))
 

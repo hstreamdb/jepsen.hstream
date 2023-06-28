@@ -41,8 +41,7 @@
 ;;;; II. HStream helper functions
 (defn random-stream-name
   [length-except-prefix]
-  (let [prefix "stream_"]
-    (str prefix (rs/string length-except-prefix))))
+  (let [prefix "stream_"] (str prefix (rs/string length-except-prefix))))
 
 (defn is-hserver-node? [node] (in? ["n1" "n2" "n3" "n4" "n5"] node))
 

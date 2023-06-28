@@ -21,8 +21,7 @@
   "Given an options map from the command-line runner (e.g. :nodes, :ssh,
   :concurrency, ...), constructs a test map."
   [opts]
-  (let [clients-ref (ref {})
-        subscription-results
+  (let [subscription-results
           (into [] (repeatedly (:fetching-number opts) #(ref [])))
         subscription-ack-timeout 5]
     (merge
@@ -32,9 +31,8 @@
        :name "HStream",
        :net net+/iptables+,
        :plot local-nemesis/plot-spec,
-       :db (common/db-empty "0.12.0"),
+       :db (common/db-empty "0.15.0"),
        :client (common/Default-Client. opts
-                                       clients-ref
                                        subscription-results
                                        subscription-ack-timeout),
        :nemesis (local-nemesis/nemesis+),
@@ -46,28 +44,28 @@
                                   :clock (checker/clock-plot),
                                   :exceptions (checker/unhandled-exceptions),
                                   :timeline (timeline/html)}),
-       :generator (let [client-gen (husky/husky-generate
-                                     {:rate (:rate opts),
-                                      :max-streams (:max-streams opts),
-                                      :max-write-number (:write-number opts),
-                                      :max-read-number (:fetching-number opts),
-                                      :read-wait-time (:fetch-wait-time opts)})]
-                    (if (:nemesis-on opts)
-                      (let [nemesis-gen
-                              (->> (gen/phases
-                                     (gen/sleep 15)
-                                     (gen/mix
-                                       [(repeat {:type :info, :f :start-slow})
-                                        (repeat {:type :info, :f :stop-slow})
-                                        (repeat {:type :info, :f :kill-node})
-                                        (repeat {:type :info, :f :resume-node})]))
-                                   (gen/stagger (:nemesis-interval opts))
-                                   (gen/time-limit
-                                     (+ (* 10 (:max-streams opts))
-                                        (quot (:write-number opts) (:rate opts))
-                                        (* 2 (:fetch-wait-time opts)))))]
-                        (gen/clients client-gen nemesis-gen))
-                      (gen/clients client-gen)))})))
+       :generator
+         (let [client-gen (husky/husky-generate
+                            {:rate (:rate opts),
+                             :max-streams (:max-streams opts),
+                             :max-write-number (:write-number opts),
+                             :max-read-number (:fetching-number opts),
+                             :read-wait-time (:fetch-wait-time opts)})]
+           (if (:nemesis-on opts)
+             (let [nemesis-gen
+                     (->> (gen/phases
+                            (gen/sleep 15)
+                            (gen/mix [(repeat {:type :info, :f :start-slow})
+                                      (repeat {:type :info, :f :stop-slow})
+                                      (repeat {:type :info, :f :kill-node})
+                                      (repeat {:type :info, :f :resume-node})]))
+                          (gen/stagger (:nemesis-interval opts))
+                          (gen/time-limit (+ (* 10 (:max-streams opts))
+                                             (quot (:write-number opts)
+                                                   (:rate opts))
+                                             (* 2 (:fetch-wait-time opts)))))]
+               (gen/clients client-gen nemesis-gen))
+             (gen/clients client-gen)))})))
 
 (def cli-opts
   "Additional command line options."
