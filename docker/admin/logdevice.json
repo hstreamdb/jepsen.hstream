@@ -5,7 +5,8 @@
     "enable-nodes-configuration-manager": "true",
     "use-nodes-configuration-manager-nodes-configuration": "true",
     "enable-cluster-maintenance-state-machine": "true",
-    "rocksdb-memtable-size-per-node": "1024M"
+    "rocksdb-memtable-size-per-node": "1024M",
+    "free-disk-space-threshold": 0.1
   },
   "client_settings": {
     "enable-nodes-configuration-manager": "true",

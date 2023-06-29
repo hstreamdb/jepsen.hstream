@@ -19,9 +19,33 @@ jobs:
           cd ./docker
           ./init-secret.sh
 
-      - name: Start test cluster & run jepsen test
+      - name: Build base image
         run: |
-          docker-compose --file ./docker/docker-compose.yml --compatibility -p jepsen up --build --abort-on-container-exit --exit-code-from control
+          docker build -t jepsen-hstream:base ./docker/base/
+
+      - name: Build test images
+        run: |
+          docker-compose --file ./docker/docker-compose.yml \
+                         --compatibility \
+                         -p jepsen \
+                         build
+
+      - name: Clean dangling images
+        run: |
+          docker image prune -f
+
+      - name: Check disk space
+        run: |
+          df -h
+
+      - name: Start test cluster and run jepsen test
+        run: |
+          docker-compose --file ./docker/docker-compose.yml \
+                         --compatibility \
+                         -p jepsen \
+                         up \
+                         --renew-anon-volumes \
+                         --exit-code-from control
 
       - name: 'Upload Artifact'
         uses: actions/upload-artifact@v2

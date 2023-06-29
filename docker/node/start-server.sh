@@ -1,5 +1,10 @@
 #!/bin/bash
 
+/usr/local/bin/init-ssh
+
+# Waiting for logdevice to start
+sleep 2
+
 SERVER_ID=$(shuf -i 1-4294967296 -n 1)
 MY_IP=$(hostname -I | head -n1 | awk '{print $1;}')
 hstream-server \

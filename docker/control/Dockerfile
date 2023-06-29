@@ -10,26 +10,26 @@ RUN if [ "$USE_CHINA_MIRROR" = true ] ; then sed -i 's/archive.ubuntu.com/mirror
 
 # Basic system stuff
 RUN apt-get -qy update && \
-    apt-get -qy install apt-transport-https
-
-# Install packages
-RUN apt-get -qy update && \
-    apt-get -qy install \
-        dos2unix \
-        openssh-server \
-        pwgen
+    apt-get -qy --no-install-recommends install \
+        apt-transport-https
 
 # Jepsen (control) dependencies
 RUN apt-get -qy update && \
-    apt-get -qy install openjdk-11-jdk-headless \
-    libjna-java \
-    git \
-    openssh-client \
-    curl \
-    wget \
-    gnuplot \
-    zookeeper \
-    leiningen
+    apt-get -qy --no-install-recommends install \
+        curl \
+        dos2unix \
+        git \
+        gnuplot-nox \
+        htop \
+        iputils-ping \
+        libjna-java \
+        leiningen \
+        openjdk-11-jdk-headless \
+        openssh-client \
+        screen \
+        wget \
+        zookeeper && \
+    rm -rf /var/lib/apt/lists/* && apt-get clean
 
 ADD ./bashrc /root/.bashrc
 ADD ./init-ssh-control.sh /init-ssh.sh
@@ -74,9 +74,9 @@ CMD /init-ssh.sh && \
     --ssh-private-key "/root/.ssh/id_rsa" \
     --dummy false \
     --grpc-timeout 60 \
-    --rate 20 \
-    --write-number 2000 \
-    --fetch-wait-time 180 \
+    --rate 50 \
+    --write-number 5000 \
+    --fetch-wait-time 30 \
     --concurrency 200 \
     --fetching-number 25 \
     --max-streams 10 \
