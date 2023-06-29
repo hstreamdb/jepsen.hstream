@@ -13,26 +13,36 @@
 
 (defn kill-node
   [node]
-  (c/on node
-        (c/exec* "killall"
-                 "-9" "hstream-server"
-                 "&&" "killall"
-                 "-9" "hstream-server"
-                 "||" "true")))
+  (try (c/on node
+             (c/exec* "killall"
+                      "-9" "hstream-server"
+                      "&&" "killall"
+                      "-9" "hstream-server"
+                      "||" "true"))
+       (catch Exception e (warn "error when killing" node ":" e))))
 
 (defn is-hserver-on-node-dead?
   [node]
-  (let [shell-out (c/on node
-                        (c/exec* "pgrep" "-x" "hstream-server" "||" "true"))]
-    (empty? shell-out)))
+  (try
+    (let [shell-out (c/on node
+                          (c/exec* "pgrep" "-x" "hstream-server" "||" "true"))]
+      (empty? shell-out))
+    (catch Exception e (warn "error when checking death on" node ":" e) true)))
 
 (defn is-hserver-on-node-alive?
   [node]
-  (let [shell-out (c/on node
-                        (c/exec* "pgrep" "-x" "hstream-server" "||" "true"))]
-    (seq shell-out)))
+  (try (let [shell-out
+               (c/on node (c/exec* "pgrep" "-x" "hstream-server" "||" "true"))]
+         (seq shell-out))
+       (catch Exception e
+         (warn "error when checking liveness on" node ":" e)
+         false)))
 
-(defn restart-node [node] (c/on node (c/exec* "/bin/start-hstream-server")))
+(defn restart-node
+  [node]
+  (try (c/on node (c/exec* "/bin/start-server"))
+       (Thread/sleep 2000)
+       (catch Exception e (warn "error when restarting" node ":" e))))
 
 (defn find-hserver-alive-nodes
   [test]
