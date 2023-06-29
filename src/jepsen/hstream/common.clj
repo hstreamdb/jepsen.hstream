@@ -63,7 +63,9 @@
         (case (:f op)
           :add (let [is-done (agent nil)
                      test-data {:key (:value op)}
-                     producer (create-producer (:client this) (:stream op))]
+                     producer (create-producer (:client this)
+                                               (:stream op)
+                                               (* 1000 (:grpc-timeout opts)))]
                  (send-off
                    is-done
                    (fn [_]
