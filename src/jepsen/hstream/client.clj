@@ -81,9 +81,14 @@
      (dorun (map #(delete-stream client % force) all-streams)))))
 
 (defn create-producer
-  [client stream-name]
-  (.build (ProducerBuilder/.stream (HStreamClient/.newProducer client)
-                                   stream-name)))
+  ([client stream-name]
+   (.build (ProducerBuilder/.stream (HStreamClient/.newProducer client)
+                                    stream-name)))
+  ([client stream-name timeout]
+   (.build (ProducerBuilder/.requestTimeoutMs
+             (ProducerBuilder/.stream (HStreamClient/.newProducer client)
+                                      stream-name)
+             timeout))))
 
 (defn map-to-hrecord
   "data-to-write is a map: {key1 value1 key2 value2 ...}
