@@ -46,8 +46,11 @@
     (open! [this test node]
       (let [target-node (if (is-hserver-node? node)
                           node
-                          (rand-nth (local-nemesis/find-hserver-alive-nodes
-                                      test)))
+                          (let [alive-nodes
+                                  (local-nemesis/find-hserver-alive-nodes test)]
+                            (if (empty? alive-nodes)
+                              (throw (Exception. "No available node now!"))
+                              (rand-nth alive-nodes))))
             service-url (str "hstream://" target-node ":6570")]
         (info "+++++++++ open with" node "(actual" target-node ") +++++++++")
         (let [[got-node got-client] (get-client-start-from-url

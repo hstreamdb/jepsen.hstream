@@ -41,7 +41,7 @@
 (defn restart-node
   [node]
   (try (c/on node (c/exec* "/bin/start-server"))
-       (Thread/sleep 2000)
+       (Thread/sleep 10000) ;; It may take a while for the server to join the cluster
        (catch Exception e (warn "error when restarting" node ":" e))))
 
 (defn find-hserver-alive-nodes
