@@ -81,7 +81,7 @@ CMD /init-ssh.sh && \
     --fetching-number 25 \
     --max-streams 10 \
     --write-timeout 60 \
-    --nemesis-interval 20 \
+    --nemesis-interval 30 \
     --nemesis-on true \
     --max-partitions 5 && \
     exit
