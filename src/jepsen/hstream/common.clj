@@ -1,7 +1,6 @@
 (ns jepsen.hstream.common
   (:gen-class)
   (:require [clojure.pprint :refer [pprint]]
-            [clojure.stacktrace :refer [e]]
             [clojure.tools.logging :refer :all]
             [jepsen [db :as db] [cli :as cli] [checker :as checker]
              [client :as client] [generator :as gen] [nemesis :as nemesis]
@@ -9,7 +8,7 @@
             [jepsen.hstream.client :refer :all]
             [jepsen.hstream.mvar :refer :all]
             [jepsen.hstream.nemesis :as local-nemesis]
-            [slingshot.slingshot :refer [try+]]
+            [slingshot.slingshot :refer [throw+ try+]]
             [jepsen.hstream.utils :refer :all]))
 
 (defn db-with-streams-initialized
@@ -22,12 +21,12 @@
         (info node ">>> Setting up DB: HStream" version)
         (when (= node "n1")
           (let [service-url (str "hstream://" node ":6570")
-                this-client (get-client service-url
-                                        (* 1000 (:grpc-timeout opts)))]
+                this-client (get-client-until-ok service-url
+                                                 (* 1000 (:grpc-timeout opts)))]
             (dosync (dorun (map #(try+ (create-stream this-client
                                                       %
                                                       (:max-partitions opts))
-                                       (catch Exception e nil))
+                                       (catch Object _ nil))
                              streams))))))
       (teardown! [_ _ node]
         (info node ">>> Tearing down DB: HStream" version))))
@@ -49,20 +48,20 @@
                           (let [alive-nodes
                                   (local-nemesis/find-hserver-alive-nodes test)]
                             (if (empty? alive-nodes)
-                              (throw (Exception. "No available node now!"))
+                              (throw+ (Exception. "No available node now!"))
                               (rand-nth alive-nodes))))
             service-url (str "hstream://" target-node ":6570")]
         (info "+++++++++ open with" node "(actual" target-node ") +++++++++")
         (let [[got-node got-client] (get-client-start-from-url
                                       service-url
                                       (* 1000 (:grpc-timeout opts)))]
-          (when (nil? got-client) (throw (Exception. "I got a nil client!")))
+          (when (nil? got-client) (throw+ (Exception. "I got a nil client!")))
           (-> this
               (assoc :client got-client
                      :target-node got-node)))))
     (setup! [_ _] (info "-------- SETTING UP DONE ---------"))
     (invoke! [this _ op]
-      (try
+      (try+
         (case (:f op)
           :add (let [is-done (agent nil)
                      test-data {:key (:value op)}
@@ -72,7 +71,7 @@
                  (send-off
                    is-done
                    (fn [_]
-                     (try (let [write-future
+                     (try+ (let [write-future
                                   (if (zero? (:max-partitions opts))
                                     (write-data producer test-data)
                                     (write-data
@@ -85,7 +84,7 @@
                                                 (:max-partitions opts)))))]
                             (.join write-future)
                             {:status :done, :details nil})
-                          (catch Exception e {:status :error, :details e}))))
+                           (catch Object _ {:status :error, :details &throw-context}))))
                  (if (await-for (* 1000 (:write-timeout opts)) is-done)
                    (let [done-result @is-done]
                      (case (:status done-result)
@@ -94,8 +93,7 @@
                                :target-node (:target-node this))
                        :error (assoc op
                                 :type :fail
-                                :error (pprint (Throwable->map (:details
-                                                                 done-result)))
+                                :error (pprint (:details done-result))
                                 :target-node (:target-node this)
                                 :extra "happened in send-off")))
                    (assoc op
@@ -139,10 +137,10 @@
                     :type :ok
                     :value @subscription-result
                     :target-node (:target-node this))))
-        (catch Exception e
+        (catch Object _
           (assoc op
             :type :fail
-            :error (pprint (Throwable->map e))
+            :error (pprint &throw-context)
             :target-node (:target-node this)
             :extra "happened in op"))))
     (teardown! [_ _] (info "++++++++++++++++ teardown! ++++++++++++++++"))

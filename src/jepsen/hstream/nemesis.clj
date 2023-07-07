@@ -1,6 +1,7 @@
 (ns jepsen.hstream.nemesis
   (:gen-class)
   (:require [clojure.tools.logging :refer :all]
+            [slingshot.slingshot :refer [try+]]
             [jepsen [db :as db] [cli :as cli] [checker :as checker]
              [client :as client] [control :as c] [generator :as gen]
              [independent :as independent] [nemesis :as nemesis]
@@ -8,42 +9,49 @@
             [jepsen.hstream.client :refer :all]
             [jepsen.hstream.mvar :refer :all]
             [jepsen.hstream.utils :refer :all]
-            [jepsen.net :as net]
-            [jepsen.nemesis :as nemesis]))
+            [jepsen.net :as net]))
 
 (defn kill-node
   [node]
-  (try (c/on node
+  (try+ (c/on node
              (c/exec* "killall"
                       "-9" "hstream-server"
                       "&&" "killall"
                       "-9" "hstream-server"
                       "||" "true"))
        (Thread/sleep 2000) ;; is this necessasy?
-       (catch Exception e (warn "error when killing" node ":" e))))
+       (catch Object _
+         (info "Failed to kill" node ":" (:message &throw-context)
+               "Ignored it because the node seems already dead."))))
 
 (defn is-hserver-on-node-dead?
   [node]
-  (try
+  (try+
     (let [shell-out (c/on node
                           (c/exec* "pgrep" "-x" "hstream-server" "||" "true"))]
       (empty? shell-out))
-    (catch Exception e (warn "error when checking death on" node ":" e) true)))
+    (catch Object _
+      (info "Failed to check death on" node ":" (:message &throw-context)
+            "I think it is already dead.")
+      true)))
 
 (defn is-hserver-on-node-alive?
   [node]
-  (try (let [shell-out
+  (try+ (let [shell-out
                (c/on node (c/exec* "pgrep" "-x" "hstream-server" "||" "true"))]
          (seq shell-out))
-       (catch Exception e
-         (warn "error when checking liveness on" node ":" e)
+       (catch Object _
+         (info "Failed to check liveness on" node ":" (:message &throw-context)
+               "I think it is already dead.")
          false)))
 
 (defn restart-node
   [node]
-  (try (c/on node (c/exec* "/bin/start-server"))
-       (Thread/sleep 10000) ;; It may take a while for the server to join the cluster
-       (catch Exception e (warn "error when restarting" node ":" e))))
+  (try+ (c/on node (c/exec* "/bin/start-server"))
+       (Thread/sleep 5000) ;; It may take a while for the server to join the cluster
+       (catch Object _
+         (warn "Failed to restart" node ":" (:message &throw-context)
+               "Ignored it but you should remember I have tried!"))))
 
 (defn find-hserver-alive-nodes
   [test]

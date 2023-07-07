@@ -1,7 +1,8 @@
 (ns jepsen.hstream.client
-  ;;  (:gen-class)
+  (:gen-class)
   (:require [clojure.core.reducers :as reducers]
             [clojure.tools.logging :refer :all]
+            [slingshot.slingshot :refer [try+]]
             [jepsen.hstream.utils :refer :all])
   (:import [io.hstream HStreamClient HStreamClientBuilder ProducerBuilder
             HRecord HRecordBuilder Subscription HRecordReceiver Stream Record]))
@@ -18,21 +19,23 @@
 
 (defn get-client-until-ok
   ([url]
-   (try (get-client url)
-        (catch Exception e (do (Thread/sleep 1000) (get-client-until-ok url)))))
+   (try+ (get-client url)
+         (catch Object _
+           (do (Thread/sleep 1000) (get-client-until-ok url)))))
   ([url timeout]
-   (try (get-client url timeout)
-        (catch Exception e
-          (do (Thread/sleep 1000) (get-client-until-ok url timeout))))))
+   (try+ (get-client url timeout)
+         (catch Object _
+           (do (Thread/sleep 1000) (get-client-until-ok url timeout))))))
 
 (defn get-client-among-urls
   ([urls]
    (reduce (fn [acc url]
              (let [[_ target-client] acc]
                (if (nil? target-client)
-                 (try (let [client (get-client url)] [url client])
-                      (catch Exception e
-                        (do (println "===> Get client error: " e) [url nil])))
+                 (try+ (let [client (get-client url)] [url client])
+                       (catch Object _
+                         (do (info url "seems unavailable. Do not worry, trying another one...")
+                             [url nil])))
                  acc)))
      [(first urls) nil]
      urls))
@@ -40,9 +43,10 @@
    (reduce (fn [acc url]
              (let [[_ target-client] acc]
                (if (nil? target-client)
-                 (try (let [client (get-client url timeout)] [url client])
-                      (catch Exception e
-                        (do (println "===> Get client error: " e) [url nil])))
+                 (try+ (let [client (get-client url timeout)] [url client])
+                       (catch Object _
+                         (do (info url "seems unavailable. Do not worry, trying another one...")
+                             [url nil])))
                  acc)))
      [(first urls) nil]
      urls)))
