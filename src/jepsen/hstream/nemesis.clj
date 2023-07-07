@@ -1,6 +1,7 @@
 (ns jepsen.hstream.nemesis
   (:gen-class)
   (:require [clojure.tools.logging :refer :all]
+            [slingshot.slingshot :refer [throw+ try+]]
             [jepsen [db :as db] [cli :as cli] [checker :as checker]
              [client :as client] [control :as c] [generator :as gen]
              [independent :as independent] [nemesis :as nemesis]
@@ -13,7 +14,7 @@
 
 (defn kill-node
   [node]
-  (try (c/on node
+  (try+ (c/on node
              (c/exec* "killall"
                       "-9" "hstream-server"
                       "&&" "killall"
@@ -24,7 +25,7 @@
 
 (defn is-hserver-on-node-dead?
   [node]
-  (try
+  (try+
     (let [shell-out (c/on node
                           (c/exec* "pgrep" "-x" "hstream-server" "||" "true"))]
       (empty? shell-out))
@@ -32,7 +33,7 @@
 
 (defn is-hserver-on-node-alive?
   [node]
-  (try (let [shell-out
+  (try+ (let [shell-out
                (c/on node (c/exec* "pgrep" "-x" "hstream-server" "||" "true"))]
          (seq shell-out))
        (catch Exception e
@@ -41,7 +42,7 @@
 
 (defn restart-node
   [node]
-  (try (c/on node (c/exec* "/bin/start-server"))
+  (try+ (c/on node (c/exec* "/bin/start-server"))
        (Thread/sleep 10000) ;; It may take a while for the server to join the cluster
        (catch Exception e (warn "error when restarting" node ":" e))))
 
@@ -70,7 +71,7 @@
                           (let [node (rand-nth alive-nodes)]
                             (kill-node node)
                             (assoc op
-                              :value (str "killed" node)
+                              :value (str "killed " node)
                               :node node))))
            :resume-node (let [dead-nodes (find-hserver-dead-nodes test)]
                           (if (empty? dead-nodes)
@@ -78,7 +79,7 @@
                             (let [node (rand-nth dead-nodes)]
                               (restart-node node)
                               (assoc op
-                                :value (str "restarted" node)
+                                :value (str "restarted " node)
                                 :node node))))))
        (nemesis/teardown! [_ _]))))
 
@@ -133,7 +134,7 @@
 
 (defn nemesis+
   []
-  (nemesis/compose {#{:kill-node :resume-node} (hserver-killer 2),
+  (nemesis/compose {#{:kill-node :resume-node} (hserver-killer 1),
                     #{:start-slow :stop-slow} (slower),
                     #{:start-loss :stop-loss} (losser),
                     {:isolate-zk :start, :resume-zk :stop} (zk-nemesis)}))

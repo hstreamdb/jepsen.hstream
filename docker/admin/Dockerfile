@@ -27,10 +27,11 @@ CMD /usr/local/bin/init-ssh && \
         --config-path zk:zookeeper:2181/logdevice.conf \
         --enable-maintenance-manager \
         --maintenance-log-snapshotting \
-        --enable-safety-check-periodic-metadata-update & \
+        --enable-safety-check-periodic-metadata-update \
+    >> /tmp/$HOSTNAME.log 2>&1 & \
     /usr/local/bin/wait-hstore && \
     hadmin store nodes-config bootstrap --metadata-replicate-across node:3 && \
     /usr/local/bin/wait-hservers && \
-    hadmin server --host hserver-1 init && \
+    hadmin server --host hserver-1 init >> /tmp/$HOSTNAME.log 2>&1 && \
     echo "Bootstraped" > /var/jepsen/shared/hserver-cluster-started && \
     tail -f /dev/null

@@ -56,5 +56,6 @@ jobs:
           name: jepsen-test-result
           path: |
             store/HStream
+            /tmp/*.log
             !store/HStream/latest
           retention-days: 7

@@ -56,6 +56,7 @@ CMD /init-ssh.sh && \
     # lein with-profile write-then-read run test \
     # --nodes "ld1,ld2,ld3,n1,n2,n3,n4,n5,zk" \
     # --ssh-private-key "/root/.ssh/id_rsa" \
+    # --strict-host-key-checking true \
     # --dummy false \
     # --grpc-timeout 20 \
     # --rate 100 \
@@ -72,6 +73,7 @@ CMD /init-ssh.sh && \
     lein with-profile husky run test \
     --nodes "ld1,ld2,ld3,n1,n2,n3,n4,n5,zk" \
     --ssh-private-key "/root/.ssh/id_rsa" \
+    --strict-host-key-checking true \
     --dummy false \
     --grpc-timeout 60 \
     --rate 50 \
@@ -81,7 +83,7 @@ CMD /init-ssh.sh && \
     --fetching-number 25 \
     --max-streams 10 \
     --write-timeout 60 \
-    --nemesis-interval 30 \
+    --nemesis-interval 20 \
     --nemesis-on true \
     --max-partitions 5 && \
     exit

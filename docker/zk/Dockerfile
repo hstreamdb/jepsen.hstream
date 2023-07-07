@@ -53,4 +53,4 @@ RUN chmod +x /usr/local/bin/init-ssh
 EXPOSE 22 2181 2888 3888
 
 CMD /usr/local/bin/init-ssh && \
-    zkServer.sh start-foreground
+    zkServer.sh start-foreground >> /tmp/$HOSTNAME.log 2>&1

@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # Configure sshd
+# We allow root login, and we increase the number of concurrent connections
 sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin yes/g" /etc/ssh/sshd_config
+sed -i "s/#MaxStartups 10:30:100/MaxStartups 100:30:100/g" /etc/ssh/sshd_config
 
 # Start ssh server
 mkdir -p /run/sshd
