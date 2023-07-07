@@ -56,7 +56,7 @@
         (let [[got-node got-client] (get-client-start-from-url
                                       service-url
                                       (* 1000 (:grpc-timeout opts)))]
-          (when (nil? got-client) (throw (Exception. "No available node now!")))
+          (when (nil? got-client) (throw (Exception. "I got a nil client!")))
           (-> this
               (assoc :client got-client
                      :target-node got-node)))))

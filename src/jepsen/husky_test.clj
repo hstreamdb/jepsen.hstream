@@ -31,12 +31,14 @@
        :name "HStream",
        :net net+/iptables+,
        :plot local-nemesis/plot-spec,
-       :db (common/db-empty "0.15.0"),
+       :db (common/db-empty "0.16.0"),
        :client (common/Default-Client. opts
                                        subscription-results
                                        subscription-ack-timeout),
        :nemesis (local-nemesis/nemesis+),
-       :ssh {:dummy? (:dummy opts)},
+       :ssh {:dummy? (:dummy opts),
+             :private-key-path "/root/.ssh/id_rsa",
+             :strict-host-key-checking false},
        :checker (checker/compose {:set (local-checker/set+),
                                   :stat (checker/stats),
                                   :latency (checker/latency-graph),
