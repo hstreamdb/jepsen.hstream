@@ -54,6 +54,7 @@ jobs:
           name: jepsen-test-result
           path: |
             store/HStream
+            /tmp/*.log
             !store/HStream/latest
 
       - name: Post to Slack channel

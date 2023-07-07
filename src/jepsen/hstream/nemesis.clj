@@ -70,7 +70,7 @@
                           (let [node (rand-nth alive-nodes)]
                             (kill-node node)
                             (assoc op
-                              :value (str "killed" node)
+                              :value (str "killed " node)
                               :node node))))
            :resume-node (let [dead-nodes (find-hserver-dead-nodes test)]
                           (if (empty? dead-nodes)
@@ -78,7 +78,7 @@
                             (let [node (rand-nth dead-nodes)]
                               (restart-node node)
                               (assoc op
-                                :value (str "restarted" node)
+                                :value (str "restarted " node)
                                 :node node))))))
        (nemesis/teardown! [_ _]))))
 
@@ -133,7 +133,7 @@
 
 (defn nemesis+
   []
-  (nemesis/compose {#{:kill-node :resume-node} (hserver-killer 2),
+  (nemesis/compose {#{:kill-node :resume-node} (hserver-killer 1),
                     #{:start-slow :stop-slow} (slower),
                     #{:start-loss :stop-loss} (losser),
                     {:isolate-zk :start, :resume-zk :stop} (zk-nemesis)}))

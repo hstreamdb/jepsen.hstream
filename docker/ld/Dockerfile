@@ -17,4 +17,5 @@ CMD /usr/local/bin/init-ssh && \
         --name $HOSTNAME \
         --address $MY_IP \
         --local-log-store-path /data/store \
-        --num-shards 1
+        --num-shards 1 \
+    >> /tmp/$HOSTNAME.log 2>&1

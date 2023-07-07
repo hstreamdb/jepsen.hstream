@@ -19,4 +19,4 @@ hstream-server \
     --log-level debug \
     --log-with-color \
     --seed-nodes hserver-1,hserver-2,hserver-3,hserver-4,hserver-5 \
-    >/tmp/node.log 2>&1 &
+    >>/tmp/$HOSTNAME.log 2>&1 &

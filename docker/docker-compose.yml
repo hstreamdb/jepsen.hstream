@@ -14,6 +14,7 @@ x-node:
   volumes:
     - "jepsen-shared:/var/jepsen/shared"
     - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+    - "/tmp:/tmp:rw"
   networks:
     - jepsen
   cap_add:
@@ -36,6 +37,7 @@ x-ld:
   volumes:
     - "jepsen-shared:/var/jepsen/shared"
     - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+    - "/tmp:/tmp:rw"
   networks:
     - jepsen
   cap_add:
@@ -84,6 +86,7 @@ services:
     volumes:
       - "jepsen-shared:/var/jepsen/shared"
       - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+      - "/tmp:/tmp:rw"
 
   zookeeper:
     container_name: jepsen-zookeeper
@@ -106,6 +109,7 @@ services:
     volumes:
       - "jepsen-shared:/var/jepsen/shared"
       - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+      - "/tmp:/tmp:rw"
 
   control:
     container_name: jepsen-control
