@@ -19,6 +19,7 @@
                       "&&" "killall"
                       "-9" "hstream-server"
                       "||" "true"))
+       (Thread/sleep 2000) ;; is this necessasy?
        (catch Exception e (warn "error when killing" node ":" e))))
 
 (defn is-hserver-on-node-dead?
@@ -69,7 +70,7 @@
                           (let [node (rand-nth alive-nodes)]
                             (kill-node node)
                             (assoc op
-                              :value "killed"
+                              :value (str "killed" node)
                               :node node))))
            :resume-node (let [dead-nodes (find-hserver-dead-nodes test)]
                           (if (empty? dead-nodes)
@@ -77,7 +78,7 @@
                             (let [node (rand-nth dead-nodes)]
                               (restart-node node)
                               (assoc op
-                                :value "restarted"
+                                :value (str "restarted" node)
                                 :node node))))))
        (nemesis/teardown! [_ _]))))
 
@@ -132,7 +133,7 @@
 
 (defn nemesis+
   []
-  (nemesis/compose {#{:kill-node :resume-node} (hserver-killer 3),
+  (nemesis/compose {#{:kill-node :resume-node} (hserver-killer 2),
                     #{:start-slow :stop-slow} (slower),
                     #{:start-loss :stop-loss} (losser),
                     {:isolate-zk :start, :resume-zk :stop} (zk-nemesis)}))
