@@ -28,7 +28,7 @@ lein with-profile husky run serve
 ```
 - If you do not have `leiningen`:
 ```
-docker run -t --rm --network host -v $(pwd):/working ardoq/leiningen:jdk11-2.9.4-mp /bin/bash -c "cd /working && lein with-profile husky run serve"
+docker run -t --rm --network host -v $(pwd):/working clojure:temurin-21-lein /bin/bash -c "cd /working && lein with-profile husky run serve"
 ```
 
 Then browse the results at `localhost:8080`.

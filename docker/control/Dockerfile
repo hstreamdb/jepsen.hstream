@@ -24,7 +24,7 @@ RUN apt-get -qy update && \
         iputils-ping \
         libjna-java \
         leiningen \
-        openjdk-11-jdk-headless \
+        openjdk-21-jdk-headless \
         openssh-client \
         screen \
         wget \

@@ -13,7 +13,7 @@
 (def iptables+
   "Default iptables (assumes we control everything)."
   (reify
-    Net
+    p/Net
       (drop! [net test src dest]
         (on dest
             (su (exec :iptables
