@@ -24,14 +24,15 @@ jobs:
 
       - name: Build base image
         run: |
-          docker build -t jepsen-hstream:base ./docker/base/
+          ./script/build_base.sh
 
-      - name: Build test images
+      - name: Build test images (legacy)
         run: |
-          docker-compose --file ./docker/docker-compose.yml \
-                         --compatibility \
-                         -p jepsen \
-                         build
+          ./script/build_legacy.sh
+      - name: Build test images (kafka)
+        run: |
+          ./script/build_kafka.sh
+
       - name: Clean dangling images
         run: |
           docker image prune -f
@@ -40,14 +41,21 @@ jobs:
         run: |
           df -h
 
-      - name: Start test cluster and run jepsen test
+      - name: Start test cluster and run jepsen test (legacy)
         run: |
-          docker-compose --file ./docker/docker-compose.yml \
-                         --compatibility \
-                         -p jepsen \
-                         up \
-                         --renew-anon-volumes \
-                         --exit-code-from control
+          ./script/up_legacy.sh
+
+      - name: Cleanup resources (legacy)
+        run: |
+          ./script/clean_legacy.sh
+
+      - name: Start test cluster and run jepsen test (kafka)
+        run: |
+          ./script/up_kafka.sh
+
+      - name: Cleanup resources (kafka)
+        run: |
+          ./script/clean_kafka.sh
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
@@ -55,7 +63,10 @@ jobs:
         with:
           name: jepsen-test-result
           path: |
-            store/HStream
+            store/legacy-husky
+            store/legacy-list-append
+            store/kafka
             /tmp/*.log
-            !store/HStream/latest
+            !store/latest
+            !store/current
           retention-days: 7

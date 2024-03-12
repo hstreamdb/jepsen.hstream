@@ -1,12 +1,17 @@
 #!/bin/bash
 
+/usr/local/bin/init-ssh
+
+# Waiting for logdevice to start
+sleep 2
+
 SERVER_ID=$(shuf -i 1-4294967296 -n 1)
 MY_IP=$(hostname -I | head -n1 | awk '{print $1;}')
-hstream-server \
+hstream-server kafka \
     --config-path /etc/hstream/config.yaml \
     --bind-address 0.0.0.0 \
-    --port 6570    \
-    --internal-port 6571 \
+    --port 9092    \
+    --gossip-port 6571 \
     --advertised-address $MY_IP \
     --store-config zk:zookeeper:2181/logdevice.conf \
     --metastore-uri "zk://zookeeper:2181" \

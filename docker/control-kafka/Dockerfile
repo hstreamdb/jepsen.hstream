@@ -20,6 +20,7 @@ RUN apt-get -qy update && \
         dos2unix \
         git \
         gnuplot-nox \
+        graphviz \
         htop \
         iputils-ping \
         libjna-java \
@@ -52,36 +53,13 @@ CMD /init-ssh.sh && \
     lein deps && \
     unset http_proxy && \
     unset https_proxy && \
-    ### For jepsen.hstream.list-append-test
-    # lein with-profile legacy-list-append run test \
-    # --nodes "ld1,ld2,ld3,n1,n2,n3,n4,n5,zk" \
-    # --ssh-private-key "/root/.ssh/id_rsa" \
-    # --dummy false \
-    # --grpc-timeout 20 \
-    # --rate 100 \
-    # --write-time 120 \
-    # --fetch-wait-time 120 \
-    # --concurrency 150 \
-    # --fetching-number 100 \
-    # --max-streams 10 \
-    # --write-timeout 60 \
-    # --nemesis-interval 15 \
-    # --nemesis-on true \
-    # --max-partitions 10 && \
-    ### For jepsen.hstream.legacy-husky
-    lein with-profile legacy-husky run test \
-    --nodes "ld1,ld2,ld3,n1,n2,n3,n4,n5,zk" \
-    --ssh-private-key "/root/.ssh/id_rsa" \
-    --dummy false \
-    --grpc-timeout 60 \
-    --rate 50 \
-    --write-number 5000 \
-    --fetch-wait-time 30 \
-    --concurrency 200 \
-    --fetching-number 25 \
-    --max-streams 10 \
-    --write-timeout 60 \
-    --nemesis-interval 20 \
-    --nemesis-on true \
-    --max-partitions 5 && \
+    # start test
+    lein with-profile kafka run test \
+    --db hstream \
+    --no-txn \
+    --no-server-idempotence \
+    --nemesis none \
+    --workload queue \
+    --time-limit 60 \
+    --sub-via subscribe && \
     exit

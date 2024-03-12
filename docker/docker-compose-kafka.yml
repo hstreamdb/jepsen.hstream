@@ -1,0 +1,200 @@
+version: '3.7'
+x-node:
+  &hserver-node
+  build: ./node-kafka
+  env_file:
+    - ./secret/node.env
+    - ./secret/control.env
+  secrets:
+    - authorized_keys
+  tty: true
+  tmpfs:
+    - /run:size=100M
+    - /run/lock:size=100M
+  volumes:
+    - "jepsen-kafka-shared:/var/jepsen/shared"
+    - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+    - "/tmp:/tmp:rw"
+  networks:
+    - jepsen-kafka
+  cap_add:
+    - ALL
+  ports:
+    - ${JEPSEN_PORT:-22}
+
+x-ld:
+  &logdevice-node
+  build: ./ld
+  env_file:
+    - ./secret/node.env
+    - ./secret/control.env
+  secrets:
+    - authorized_keys
+  tty: true
+  tmpfs:
+    - /run:size=100M
+    - /run/lock:size=100M
+  volumes:
+    - "jepsen-kafka-shared:/var/jepsen/shared"
+    - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+    - "/tmp:/tmp:rw"
+  networks:
+    - jepsen-kafka
+  cap_add:
+    - ALL
+  ports:
+    - ${JEPSEN_PORT:-22}
+  expose:
+      - "4440"
+      - "4441"
+      - "4443"
+      - "6440"
+
+volumes:
+  jepsen-kafka-shared:
+
+secrets:
+  authorized_keys:
+    file: ./secret/authorized_keys
+
+networks:
+  jepsen-kafka:
+    driver: bridge
+
+services:
+  ld-admin:
+    container_name: jepsen-kafka-ld-admin
+    hostname: admin
+    depends_on:
+      - zookeeper
+    build: ./admin-kafka
+    env_file: ./secret/node.env
+    secrets:
+      - authorized_keys
+    tmpfs:
+      - /run:size=100M
+      - /run/lock:size=100M
+    expose:
+      - "4440"
+      - "4441"
+      - "4443"
+      - "6440"
+    networks:
+      - jepsen-kafka
+    cap_add:
+      - ALL
+    volumes:
+      - "jepsen-kafka-shared:/var/jepsen/shared"
+      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+      - "/tmp:/tmp:rw"
+
+  zookeeper:
+    container_name: jepsen-kafka-zookeeper
+    hostname: zk
+    build: ./zk
+    env_file: ./secret/node.env
+    secrets:
+      - authorized_keys
+    tmpfs:
+      - /run:size=100M
+      - /run/lock:size=100M
+    expose:
+      - "2181"
+      - "2888"
+      - "3888"
+    networks:
+      - jepsen-kafka
+    cap_add:
+      - ALL
+    volumes:
+      - "jepsen-kafka-shared:/var/jepsen/shared"
+      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+      - "/tmp:/tmp:rw"
+
+  control:
+    container_name: jepsen-kafka-control
+    hostname: control-kafka
+    depends_on:
+      - zookeeper
+      - hserver-1
+      - hserver-2
+      - hserver-3
+      - hserver-4
+      - hserver-5
+      - ld-admin
+    build: ./control-kafka
+    env_file: ./secret/control.env
+    privileged: true
+    expose:
+      - "22"
+      - "8080"
+    networks:
+      - jepsen-kafka
+    volumes:
+      - "../:/home/Work"
+      - "jepsen-kafka-shared:/var/jepsen/shared"
+
+  hstore-1:
+    << : *logdevice-node
+    container_name: jepsen-kafka-ld1
+    hostname: ld1
+    depends_on:
+      - zookeeper
+  hstore-2:
+    << : *logdevice-node
+    container_name: jepsen-kafka-ld2
+    hostname: ld2
+    depends_on:
+      - zookeeper
+  hstore-3:
+    << : *logdevice-node
+    container_name: jepsen-kafka-ld3
+    hostname: ld3
+    depends_on:
+      - zookeeper
+
+  hserver-1:
+    << : *hserver-node
+    container_name: jepsen-kafka-n1
+    hostname: n1
+    depends_on:
+      - zookeeper
+      - hstore-1
+      - hstore-2
+      - hstore-3
+  hserver-2:
+    << : *hserver-node
+    container_name: jepsen-kafka-n2
+    hostname: n2
+    depends_on:
+      - zookeeper
+      - hstore-1
+      - hstore-2
+      - hstore-3
+  hserver-3:
+    << : *hserver-node
+    container_name: jepsen-kafka-n3
+    hostname: n3
+    depends_on:
+      - zookeeper
+      - hstore-1
+      - hstore-2
+      - hstore-3
+  hserver-4:
+    << : *hserver-node
+    container_name: jepsen-kafka-n4
+    hostname: n4
+    depends_on:
+      - zookeeper
+      - hstore-1
+      - hstore-2
+      - hstore-3
+  hserver-5:
+    << : *hserver-node
+    container_name: jepsen-kafka-n5
+    hostname: n5
+    depends_on:
+      - zookeeper
+      - hstore-1
+      - hstore-2
+      - hstore-3
