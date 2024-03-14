@@ -1,7 +1,6 @@
-(ns jepsen.hstream.husky
-  (:gen-class)
-  (:require [jepsen.hstream.husky.utils :refer :all]
-            [jepsen.hstream.utils :refer
+(ns jepsen.hstream.legacy.husky
+  (:require [jepsen.hstream.legacy.husky.utils :refer :all]
+            [jepsen.hstream.common.utils :refer
              [insert first-index random-stream-name]]
             [jepsen.generator :as gen]))
 

@@ -1,15 +1,14 @@
-(ns jepsen.hstream.common
-  (:gen-class)
+(ns jepsen.hstream.legacy.common
   (:require [clojure.pprint :refer [pprint]]
             [clojure.tools.logging :refer :all]
             [jepsen [db :as db] [cli :as cli] [checker :as checker]
              [client :as client] [generator :as gen] [nemesis :as nemesis]
              [tests :as tests]]
-            [jepsen.hstream.client :refer :all]
-            [jepsen.hstream.mvar :refer :all]
-            [jepsen.hstream.nemesis :as local-nemesis]
+            [jepsen.hstream.legacy.client :refer :all]
+            [jepsen.hstream.common.mvar :refer :all]
+            [jepsen.hstream.legacy.nemesis :as local-nemesis]
             [slingshot.slingshot :refer [throw+ try+]]
-            [jepsen.hstream.utils :refer :all]))
+            [jepsen.hstream.common.utils :refer :all]))
 
 (defn db-with-streams-initialized
   "HStream DB for a particular version. Here we use the FIRST

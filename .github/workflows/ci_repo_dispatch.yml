@@ -5,10 +5,10 @@ on:
     types: image_updated
 
 jobs:
-  jepsen-test:
+  legacy-test:
     runs-on: ubuntu-latest
-    name: The simplest jepsen test for HStreamDB
-    timeout-minutes: 60
+    name: Jepsen test for hstream legacy mode
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v2
         with:
@@ -21,41 +21,97 @@ jobs:
 
       - name: Build base image
         run: |
-          docker build -t jepsen-hstream:base ./docker/base/
+          ./scripts/build_base.sh
 
-      - name: Build test images
+      - name: Build test images (legacy)
         run: |
-          docker-compose --file ./docker/docker-compose.yml \
-                         --compatibility \
-                         -p jepsen \
-                         build
-
-      - name: Clean dangling images
-        run: |
-          docker image prune -f
+          ./scripts/build_legacy.sh
 
       - name: Check disk space
         run: |
           df -h
 
-      - name: Start test cluster and run jepsen test
+      - name: Start test cluster and run jepsen test (legacy)
         run: |
-          docker-compose --file ./docker/docker-compose.yml \
-                         --compatibility \
-                         -p jepsen \
-                         up \
-                         --renew-anon-volumes \
-                         --exit-code-from control
+          ./scripts/up_legacy.sh
 
-      - name: 'Upload Artifact'
+      - name: Cleanup resources (legacy)
+        run: |
+          ./scripts/clean_legacy.sh
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        if: ${{ success() }} || ${{ failure() }}
+        with:
+          name: legacy-result
+          path: |
+            store/legacy-husky
+            store/legacy-list-append
+            /tmp/*.log
+            !store/latest
+            !store/current
+          retention-days: 7
+
+      - name: Post to Slack channel
+        if: ${{ success() }} || ${{ failure() }}
+        run: |
+          if [ "${{ job.status }}" = 'success' ]
+            then JOB_STATUS_EMOJI=':white_check_mark:'
+            else JOB_STATUS_EMOJI=':x:'
+          fi
+          curl                                  \
+            -X POST                             \
+            -H 'Content-Type: application/json' \
+            ${{ secrets.SLACK_WEBHOOK_URL }}    \
+            --data '{"GitHub Action build result": "${{ job.status }} '"$JOB_STATUS_EMOJI"'",
+                     "Commit info": "https://github.com/hstreamdb/hstream/commit/${{ github.event.client_payload.commit_sha }}",
+                     "Action summary": "https://github.com/'"$GITHUB_REPOSITORY"'/actions/runs/'"$GITHUB_RUN_ID"'"}'
+
+  kafka-test:
+    runs-on: ubuntu-latest
+    name: Jepsen test for hstream kafka mode
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: "recursive"
+
+      - name: Prepare environment for test
+        run: |
+          cd ./docker
+          ./init-secret.sh
+
+      - name: Build base image
+        run: |
+          ./scripts/build_base.sh
+
+      - name: Build test images (kafka)
+        run: |
+          ./scripts/build_kafka.sh
+
+      - name: Check disk space
+        run: |
+          df -h
+
+      - name: Start test cluster and run jepsen test (kafka)
+        run: |
+          ./scripts/up_kafka.sh
+
+      - name: Cleanup resources (kafka)
+        run: |
+          ./scripts/clean_kafka.sh
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v2
         if: ${{ success() }} || ${{ failure() }}
         with:
           name: jepsen-test-result
           path: |
-            store/HStream
+            store/kafka
             /tmp/*.log
-            !store/HStream/latest
+            !store/latest
+            !store/current
+          retention-days: 7
 
       - name: Post to Slack channel
         if: ${{ success() }} || ${{ failure() }}

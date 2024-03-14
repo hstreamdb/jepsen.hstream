@@ -5,10 +5,7 @@ FROM ${BASE_IMAGE}
 COPY start-server.sh /bin/start-server
 RUN  chmod +x /bin/start-server
 
-EXPOSE 22 6570
+EXPOSE 22 9092
 
-CMD /usr/local/bin/init-ssh && \
-    # Waiting for logdevice to start
-    sleep 2 && \
-    /bin/start-server && \
+CMD /bin/start-server && \
     bash # Keep container alive

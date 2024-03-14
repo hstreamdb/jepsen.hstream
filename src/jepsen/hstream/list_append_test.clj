@@ -1,20 +1,19 @@
-(ns jepsen.write-then-read
-  (:gen-class)
+(ns jepsen.hstream.list-append-test
   (:require [clojure.tools.logging :refer :all]
             [jepsen [db :as db] [cli :as cli] [checker :as checker]
              [client :as client] [control :as c] [generator :as gen]
              [independent :as independent] [nemesis :as nemesis]
              [tests :as tests]]
             [jepsen.checker.timeline :as timeline]
-            [jepsen.hstream.checker :as local-checker]
-            [jepsen.hstream.client :refer :all]
-            [jepsen.hstream.common :as common]
-            [jepsen.hstream.husky :refer :all]
-            [jepsen.hstream.mvar :refer :all]
-            [jepsen.hstream.utils :refer :all]
-            [jepsen.hstream.nemesis :as local-nemesis]
-            [jepsen.hstream.net :as net+])
-  (:import [jepsen.hstream.common Default-Client]))
+            [jepsen.hstream.legacy.checker :as local-checker]
+            [jepsen.hstream.legacy.client :refer :all]
+            [jepsen.hstream.legacy.common :as common]
+            [jepsen.hstream.legacy.husky :refer :all]
+            [jepsen.hstream.common.mvar :refer :all]
+            [jepsen.hstream.common.utils :refer :all]
+            [jepsen.hstream.legacy.nemesis :as local-nemesis]
+            [jepsen.hstream.common.net :as net+])
+  (:import [jepsen.hstream.legacy.common Default-Client]))
 
 ;;;;;;;;;; Global Variables ;;;;;;;;;;
 
@@ -56,10 +55,10 @@
       tests/noop-test
       opts
       {:pure-generators true,
-       :name "HStream",
+       :name "legacy-list-append",
        :net net+/iptables+,
        :plot local-nemesis/plot-spec,
-       :db (common/db-with-streams-initialized "0.16.0" opts test-streams),
+       :db (common/db-with-streams-initialized "0.19.0" opts test-streams),
        :client (common/Default-Client. opts
                                        subscription-results
                                        subscription-ack-timeout),

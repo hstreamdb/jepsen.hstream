@@ -1,9 +1,8 @@
-(ns jepsen.hstream.client
-  (:gen-class)
+(ns jepsen.hstream.legacy.client
   (:require [clojure.core.reducers :as reducers]
             [clojure.tools.logging :refer :all]
             [slingshot.slingshot :refer [try+]]
-            [jepsen.hstream.utils :refer :all])
+            [jepsen.hstream.common.utils :refer :all])
   (:import [io.hstream HStreamClient HStreamClientBuilder ProducerBuilder
             HRecord HRecordBuilder Subscription HRecordReceiver Stream Record]))
 

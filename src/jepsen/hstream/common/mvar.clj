@@ -1,8 +1,7 @@
 ;; https://gist.github.com/fredyr/6345191
 
-(ns jepsen.hstream.mvar
-  (:gen-class)
-  (:require [jepsen.hstream.mcons :refer :all]))
+(ns jepsen.hstream.common.mvar
+  (:require [jepsen.hstream.common.mcons :refer :all]))
 
 (defn empty-mvar
   []

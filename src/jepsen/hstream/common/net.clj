@@ -1,4 +1,4 @@
-(ns jepsen.hstream.net
+(ns jepsen.hstream.common.net
   (:require [clojure.string :as str]
             [jepsen.control :refer :all]
             [jepsen.control.net :as control.net]
@@ -13,7 +13,7 @@
 (def iptables+
   "Default iptables (assumes we control everything)."
   (reify
-    p/Net
+    Net
       (drop! [net test src dest]
         (on dest
             (su (exec :iptables
