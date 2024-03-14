@@ -45,11 +45,8 @@ jobs:
         with:
           name: legacy-result
           path: |
-            store/legacy-husky
-            store/legacy-list-append
+            store/
             /tmp/*.log
-            !store/latest
-            !store/current
           retention-days: 7
 
       - name: Post to Slack channel
@@ -105,12 +102,10 @@ jobs:
         uses: actions/upload-artifact@v2
         if: ${{ success() }} || ${{ failure() }}
         with:
-          name: jepsen-test-result
+          name: kafka-result
           path: |
-            store/kafka
+            store/
             /tmp/*.log
-            !store/latest
-            !store/current
           retention-days: 7
 
       - name: Post to Slack channel
