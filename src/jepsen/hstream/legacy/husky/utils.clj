@@ -1,7 +1,6 @@
-(ns jepsen.hstream.husky.utils
-  (:gen-class)
+(ns jepsen.hstream.legacy.husky.utils
   (:require [clojure.core.reducers :as reducers]
-            [jepsen.hstream.utils :refer [first-index]]
+            [jepsen.hstream.common.utils :refer [first-index]]
             [jepsen.generator :as gen]))
 
 (defn rand-int-exclude-zero

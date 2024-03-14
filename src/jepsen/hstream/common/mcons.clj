@@ -1,7 +1,7 @@
 ;; https://gist.github.com/fredyr/6341286
 ;; http://docs.racket-lang.org/reference/mpairs.html
 
-(ns jepsen.hstream.mcons (:gen-class))
+(ns jepsen.hstream.common.mcons)
 
 (defprotocol IMCons
   (mcar [p])

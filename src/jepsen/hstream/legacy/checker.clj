@@ -1,4 +1,4 @@
-(ns jepsen.hstream.checker
+(ns jepsen.hstream.legacy.checker
   "Validates that a history is correct with respect to some model."
   (:refer-clojure :exclude [set])
   (:require
@@ -9,7 +9,7 @@
     [knossos [op :as op]]
     [slingshot.slingshot :refer [try+ throw+]]
     [jepsen.checker :refer :all]
-    [jepsen.hstream.utils :refer [queue-property is-sorted? map-value]]))
+    [jepsen.hstream.common.utils :refer [queue-property is-sorted? map-value]]))
 
 (defn set+
   "Given a set of :add operations followed by **A SERIES OF** final :read, verifies that

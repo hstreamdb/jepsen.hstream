@@ -1,14 +1,13 @@
-(ns jepsen.hstream.nemesis
-  (:gen-class)
+(ns jepsen.hstream.legacy.nemesis
   (:require [clojure.tools.logging :refer :all]
             [slingshot.slingshot :refer [try+]]
             [jepsen [db :as db] [cli :as cli] [checker :as checker]
              [client :as client] [control :as c] [generator :as gen]
              [independent :as independent] [nemesis :as nemesis]
              [tests :as tests]]
-            [jepsen.hstream.client :refer :all]
-            [jepsen.hstream.mvar :refer :all]
-            [jepsen.hstream.utils :refer :all]
+            [jepsen.hstream.legacy.client :refer :all]
+            [jepsen.hstream.common.mvar :refer :all]
+            [jepsen.hstream.common.utils :refer :all]
             [jepsen.net :as net]))
 
 (defn kill-node

@@ -1,5 +1,4 @@
-(ns jepsen.hstream.utils
-  (:gen-class)
+(ns jepsen.hstream.common.utils
   (:require [random-string.core :as rs]))
 
 ;;;; I. Clojure common helper functions
