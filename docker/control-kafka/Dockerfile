@@ -56,10 +56,31 @@ CMD /init-ssh.sh && \
     # start test
     lein with-profile kafka run test \
     --db hstream \
-    --no-txn \
-    --no-server-idempotence \
-    --nemesis none \
     --workload queue \
-    --time-limit 60 \
-    --sub-via subscribe && \
+    --sub-via subscribe \
+    --time-limit 120 \
+    --final-time-limit 120 \
+    ## We do not support txns and idempotent for now.
+    ## So we disable it.
+    --no-txn \
+    --no-idempotence \
+    --no-server-idempotence \
+    ## The following options controls nemesises.
+    --nemesis none \
+    --crash-clients true \
+    # --crash-client-interval 30 \ # FIXME: parse error, what happened?
+    # --tcpdump \ # TODO: sadly, tcpdump is only available for redpanda.
+    ## The following opts is client default but we
+    ## specify them explicitly here for clarity.
+    --auto-offset-reset latest \
+    --enable-auto-commit \
+    --enable-server-auto-create-topics \
+    --isolation-level read_uncommitted \
+    --acks all && \
+    ## For kafka test, the following options are hard-coded,
+    ## see workload/queue.clj and workload/list_append.clj.
+    ## - replication-factor = 3
+    ## - partition-count = 2
+    ## - poll-ms = 100
+    ## - ... TODO
     exit
