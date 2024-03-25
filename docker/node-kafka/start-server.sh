@@ -5,7 +5,7 @@
 # Waiting for logdevice to start
 sleep 2
 
-SERVER_ID=$(shuf -i 1-4294967296 -n 1)
+SERVER_ID=$(shuf -i 1-2147483647 -n 1) # Int32
 MY_IP=$(hostname -I | head -n1 | awk '{print $1;}')
 hstream-server kafka \
     --config-path /etc/hstream/config.yaml \

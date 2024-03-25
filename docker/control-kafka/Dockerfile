@@ -60,6 +60,8 @@ CMD /init-ssh.sh && \
     --sub-via subscribe \
     --time-limit 120 \
     --final-time-limit 120 \
+    # This value is enough. A larger one can make elle exhausted.
+    --concurrency 5 \
     ## We do not support txns and idempotent for now.
     ## So we disable it.
     --no-txn \
