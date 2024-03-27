@@ -50,6 +50,8 @@ jobs:
           path: |
             store/
             /tmp/*.log
+            !store/current/
+            !store/latest/
           retention-days: 7
 
   kafka-test:
@@ -94,4 +96,6 @@ jobs:
           path: |
             store/
             /tmp/*.log
+            !store/current/
+            !store/latest/
           retention-days: 7

@@ -47,6 +47,8 @@ jobs:
           path: |
             store/
             /tmp/*.log
+            !store/current/
+            !store/latest/
           retention-days: 7
 
       - name: Post to Slack channel
@@ -106,6 +108,8 @@ jobs:
           path: |
             store/
             /tmp/*.log
+            !store/current/
+            !store/latest/
           retention-days: 7
 
       - name: Post to Slack channel
