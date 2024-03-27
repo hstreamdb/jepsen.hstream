@@ -175,7 +175,7 @@
 
 (def partition-count
   "How many partitions per topic?"
-  2)
+  4)
 
 (def replication-factor
   "What replication factor should we use for each topic?"

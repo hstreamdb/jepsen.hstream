@@ -60,6 +60,8 @@ CMD /init-ssh.sh && \
     --sub-via subscribe \
     --time-limit 120 \
     --final-time-limit 120 \
+    --key-dist uniform \
+    --key-count 32 \
     # This value is enough. A larger one can make elle exhausted.
     --concurrency 5 \
     ## The default number of partitions is 1, which may be different
@@ -86,7 +88,7 @@ CMD /init-ssh.sh && \
     ## For kafka test, the following options are hard-coded,
     ## see workload/queue.clj and workload/list_append.clj.
     ## - replication-factor = 3
-    ## - partition-count = 2
+    ## - partition-count = 4
     ## - poll-ms = 100
     ## - ... TODO
     exit

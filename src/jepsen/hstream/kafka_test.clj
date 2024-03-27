@@ -341,6 +341,16 @@
    [nil "--retries COUNT" "Producer retries. If omitted, uses client default."
     :parse-fn parse-long]
 
+   [nil "--key-dist DIST" "What distribution should we use for keys? e.g. uniform"
+    :default :exponential
+    :parse-fn keyword
+    :validate [#(some #{%} '(:exponential :uniform)) "Must be one of exponential or uniform"]]
+
+   [nil "--key-count COUNT" "How many keys should we use?"
+    :default 12
+    :parse-fn parse-long
+    :validate validate-non-neg]
+
    ["-s" "--safe" "Runs with the safest settings: --disable-auto-commit, --disable-server-auto-create-topics, --acks all, --default-topic-replications 3, --disable-server --retries 1000, --idempotence, --isolation-level read_committed --auto-offset-reset earliest, --sub-via assign. You can override individual settings by following -s with additional arguments, like so: -s --acks 0"
     :assoc-fn (fn [m _ _]
                 (assoc m
