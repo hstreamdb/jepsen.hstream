@@ -62,6 +62,10 @@ CMD /init-ssh.sh && \
     --final-time-limit 120 \
     --key-dist uniform \
     --key-count 32 \
+    ## When writes of a key exceed the limit, the generator will pick
+    ## a new key (which can be larger than 'key-count'!!!), which is
+    ## very confusing. So we set a very large limit here.
+    --max-writes-per-key 102400 \
     # This value is enough. A larger one can make elle exhausted.
     --concurrency 5 \
     ## The default number of partitions is 1, which may be different
