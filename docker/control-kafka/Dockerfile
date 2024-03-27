@@ -72,6 +72,8 @@ CMD /init-ssh.sh && \
     ## from the test. This can make some partitions unusable. So we
     ## never create topics automatically.
     --disable-server-auto-create-topics \
+    ## disable producer retry
+    --retries 0 \
     ## We do not support txns and idempotent for now.
     ## So we disable it.
     --no-txn \
