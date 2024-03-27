@@ -105,6 +105,9 @@
     (not= nil (:isolation-level opts))
     (assoc ConsumerConfig/ISOLATION_LEVEL_CONFIG (:isolation-level opts))
 
+    (not= nil (:enable-server-auto-create-topics opts))
+    (assoc ConsumerConfig/ALLOW_AUTO_CREATE_TOPICS_CONFIG (:enable-server-auto-create-topics opts))
+
     (not= nil (:auto-offset-reset opts))
     (assoc ConsumerConfig/AUTO_OFFSET_RESET_CONFIG (:auto-offset-reset opts))
 

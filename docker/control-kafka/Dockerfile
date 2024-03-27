@@ -62,6 +62,10 @@ CMD /init-ssh.sh && \
     --final-time-limit 120 \
     # This value is enough. A larger one can make elle exhausted.
     --concurrency 5 \
+    ## The default number of partitions is 1, which may be different
+    ## from the test. This can make some partitions unusable. So we
+    ## never create topics automatically.
+    --disable-server-auto-create-topics \
     ## We do not support txns and idempotent for now.
     ## So we disable it.
     --no-txn \
