@@ -14,7 +14,7 @@
 (defn set+
   "Given a set of :add operations followed by **A SERIES OF** final :read, verifies that
   every successfully added element is present in the read, and that the read
-  contains only elements for which an add was attempted."
+  contains only elements for which an add was invoked."
   []
   (reify
     Checker
@@ -26,17 +26,27 @@
                                 (r/map :stream)
                                 (into #{}))
               ;; {stream [value]}
-              attempts (->> history
+              add-invokes (->> history
                             (r/filter op/invoke?)
                             (r/filter #(= :add (:f %)))
                             (group-by :stream)
                             (map-value #(into [] (map :value %))))
               ;; {stream [value]}
-              adds (->> history
+              add-oks (->> history
                         (r/filter op/ok?)
                         (r/filter #(= :add (:f %)))
                         (group-by :stream)
                         (map-value #(into [] (map :value %))))
+              add-infos (->> history
+                          (r/filter op/info?)
+                          (r/filter #(= :add (:f %)))
+                          (group-by :stream)
+                          (map-value #(into [] (map :value %))))
+              add-fails (->> history
+                          (r/filter op/fail?)
+                          (r/filter #(= :add (:f %)))
+                          (group-by :stream)
+                          (map-value #(into [] (map :value %))))
               ;; {stream [value]}
               add-total-retries (->> history
                                      (r/filter #(or (op/ok? %) (op/fail? %)))
@@ -86,17 +96,12 @@
           (if-not reads
             {:valid? :unknown, :error "Set was never read"}
             (let [;; {stream #{value}}
-                  add-fail (into {}
-                                 (map (fn [[k1 v1]]
-                                        (let [v2 (get adds k1)]
-                                          [k1
-                                           (set/difference (into #{} v1)
-                                                           (into #{} v2))]))
-                                   attempts))
+                  add-fail (into {} add-fails)
+                  add-info (into {} add-infos)
                   ;; {stream #{value}}
                   read-correct (into {}
                                      (map (fn [[k1 v1]]
-                                            (let [v2 (get adds k1)]
+                                            (let [v2 (get add-oks k1)]
                                               [k1
                                                (set/intersection (into #{} v1)
                                                                  (into #{}
@@ -105,7 +110,7 @@
                   ;; {stream #{value}}
                   read-lost (into {}
                                   (map (fn [[k1 v1]]
-                                         (let [v2 (get adds k1)]
+                                         (let [v2 (get add-oks k1)]
                                            [k1
                                             (set/difference (into #{} v2)
                                                             (into #{} v1))]))
@@ -113,7 +118,7 @@
                   ;; {stream #{value}}
                   read-unexpected (into {}
                                         (map (fn [[k1 v1]]
-                                               (let [v2 (get attempts k1)]
+                                               (let [v2 (get add-invokes k1)]
                                                  [k1
                                                   (set/difference (into #{} v1)
                                                                   (into #{}
@@ -136,7 +141,7 @@
                   read-queue-property
                     (into {}
                           (map (fn [[k1 v1s]]
-                                 (let [v2 (get adds k1)
+                                 (let [v2 (get add-oks k1)
                                        this-stream-every-consumer-properties
                                          (map #(queue-property v2 %) v1s)]
                                    [k1
@@ -152,15 +157,18 @@
                          )),
                ;; ----------------- verbose-0, total -----------------
                :verbose-0
-                 {:Adds {:Adds-ATTEMPED-total (->> (map-value count attempts)
-                                                   vals
-                                                   (reduce +)),
-                         :Adds-SUCCEEDED-total (->> (map-value count adds)
+                 {:Adds {:Adds-INVOKED-total (->> (map-value count add-invokes)
+                                                  vals
+                                                  (reduce +)),
+                         :Adds-SUCCEEDED-total (->> (map-value count add-oks)
                                                     vals
                                                     (reduce +)),
                          :Adds-FAILED-total (->> (map-value count add-fail)
                                                  vals
                                                  (reduce +)),
+                         :Adds-INFO-total (->> (map-value count add-info)
+                                               vals
+                                               (reduce +)),
                          :Adds-RETRIED-total (->> (map-value count
                                                              add-total-retries)
                                                   vals
@@ -190,9 +198,10 @@
                                  (reduce +))}},
                ;; ----------------- verbose-1, each stream -----------------
                :verbose-1
-                 {:Adds {:Adds-ATTEMPED-count (map-value count attempts),
-                         :Adds-SUCCEEDED-count (map-value count adds),
+                 {:Adds {:Adds-INVOKED-count (map-value count add-invokes),
+                         :Adds-SUCCEEDED-count (map-value count add-oks),
                          :Adds-FAILED-count (map-value count add-fail),
+                         :Adds-INFO-count (map-value count add-info),
                          :Adds-RETRIED-count (map-value count
                                                         add-total-retries),
                          :Adds-RETRIED-SUCCEEDED-count
@@ -207,9 +216,10 @@
                                                              read-unexpected)}},
                ;; ----------------- verbose-2, details -----------------
                :verbose-2
-                 {:Adds {:Adds-ATTEMPED-details (map str attempts),
-                         :Adds-SUCCEEDED-details (map str adds),
+                 {:Adds {:Adds-INVOKED-details (map str add-invokes),
+                         :Adds-SUCCEEDED-details (map str add-oks),
                          :Adds-FAILED-details (map str add-fail),
+                         :Adds-INFO-details (map str add-info),
                          :Adds-RETRIED-details (map str add-total-retries),
                          :Adds-RETRIED-SUCCEEDED-details
                            (map str add-succeeded-retries),
@@ -221,5 +231,5 @@
                           :Reads-LOST-details (map-value str read-lost),
                           :Reads-UNEXPECTED-details (map-value str
                                                                read-unexpected),
-                          ; :Reads-ORDER-PROPERTY        read-queue-property
+                          :Reads-ORDER-PROPERTY        read-queue-property
                           :Reads-OVERLAP (map-value str reads-overlap)}}}))))))

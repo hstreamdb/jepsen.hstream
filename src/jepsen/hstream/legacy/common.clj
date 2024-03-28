@@ -8,7 +8,40 @@
             [jepsen.hstream.common.mvar :refer :all]
             [jepsen.hstream.legacy.nemesis :as local-nemesis]
             [slingshot.slingshot :refer [throw+ try+]]
-            [jepsen.hstream.common.utils :refer :all]))
+            [jepsen.hstream.common.utils :refer :all])
+  (:import (io.grpc StatusException)
+           (java.util.concurrent TimeoutException
+                                 TimeUnit
+                                 CompletionException)
+           (java.net ConnectException)
+           (io.hstream HStreamDBClientException)))
+
+(defmacro op-with-errors
+  [op & body]
+  `(try+ ~@body
+         (catch StatusException e#
+           (case (.getStatus e#)
+             Status$Code/UNAVAILABLE         (assoc ~op :type :info :error :grpc-unavailable)
+             Status$Code/ABORTED             (assoc ~op :type :info :error :grpc-aborted)
+             Status$Code/DEADLINE_EXCEEDED   (assoc ~op :type :info :error :grpc-unavailable)
+             Status$Code/FAILED_PRECONDITION (assoc ~op :type :info :error :grpc-failed-precondition)
+             (assoc ~op :type :fail :error [:grpc-bad-exceptions (.getDescription (.getStatus e#))])))
+         (catch CompletionException e#
+           (assoc ~op :type :info :error [:completion-exceptions e#]))
+         (catch HStreamDBClientException e#
+           (condp re-find (.getMessage e#)
+             #"UNAVAILABLE"
+             (assoc ~op :type :info :error :grpc-unavailable)
+
+             (assoc ~op :type :fail :error [:hstream-exceptions e#])))
+         (catch TimeoutException e#
+           (assoc ~op :type :info :error [:timeout-exceptions e#]))
+         (catch IllegalStateException e#
+           (assoc ~op :type :info :error [:illegal-state-exceptions e#]))
+         (catch ConnectException e#
+           (assoc ~op :type :info :error [:connect-exceptions e#]))
+         (catch Object e#
+           (assoc ~op :type :fail :error [:other-exceptions e#]))))
 
 (defn db-with-streams-initialized
   "HStream DB for a particular version. Here we use the FIRST
@@ -16,135 +49,121 @@
   [version opts streams]
   (reify
     db/DB
-      (setup! [_ test node]
-        (info node ">>> Setting up DB: HStream" version)
-        (when (= node "n1")
-          (let [service-url (str "hstream://" node ":6570")
-                this-client (get-client-until-ok service-url
-                                                 (* 1000 (:grpc-timeout opts)))]
-            (dosync (dorun (map #(try+ (create-stream this-client
-                                                      %
-                                                      (:max-partitions opts))
-                                       (catch Object _ nil))
-                             streams))))))
-      (teardown! [_ _ node]
-        (info node ">>> Tearing down DB: HStream" version))))
+    (setup! [_ test node]
+      (when (= node "n1")
+        (let [service-url (str "hstream://" node ":6570")
+              this-client (get-client-until-ok service-url
+                                               (* 1000 (:grpc-timeout opts)))]
+          (dosync (dorun (map #(try+ (create-stream this-client
+                                                    %
+                                                    (:max-partitions opts))
+                                     (catch Object _ nil))
+                              streams))))))
+    (teardown! [_ _ node])))
 
 (defn db-empty
   "HStream DB for a particular version. No extra action is executed after the DB is ready."
   [version]
   (reify
     db/DB
-      (setup! [_ _ node] (info node ">>> Setting up DB: HStream" version))
-      (teardown! [_ _ node]
-        (info node ">>> Tearing down DB: HStream" version))))
+    (setup! [_ _ _])
+    (teardown! [_ _ _])))
+
+(defn client-on-node
+  "Open a hstream client on a particular node, which may not be a hserver node.
+   If not, randomly pick an alive hserver node instead.
+   Returns: (assoc this :client client :target-node actual-node)
+   Warning: `client` and `actual-node` may be nil if there is no alive node."
+  [this test node]
+  (try+
+   (let [target-node (if (is-hserver-node? node)
+                       node
+                       (let [alive-nodes
+                             (local-nemesis/find-hserver-alive-nodes test)
+                             ]
+                         (if (empty? alive-nodes)
+                           nil
+                           (rand-nth alive-nodes))))
+         ]
+     (if (nil? target-node)
+       (assoc this :client nil :target-node nil)
+       (let [service-url (str "hstream://" target-node ":6570")
+             [got-node got-client] (get-client-start-from-url
+                                    service-url
+                                    (* 1000 (:grpc-timeout (:opts this))))]
+         (if (nil? got-client)
+           (assoc this :client nil :target-node nil)
+           (assoc this :client got-client :target-node got-node)))))
+   (catch RuntimeException e
+     (condp re-find (.getMessage e)
+       #"ManagedChannel"
+       (do (Thread/sleep 1000)
+           (client-on-node this test node))
+
+       (assoc this :client nil :target-node nil)))
+   (catch Object _
+     (assoc this :client nil :target-node nil))))
 
 (defrecord Default-Client [opts subscription-results subscription-ack-timeout]
   client/Client
     (open! [this test node]
-      (let [target-node (if (is-hserver-node? node)
-                          node
-                          (let [alive-nodes
-                                  (local-nemesis/find-hserver-alive-nodes test)]
-                            (if (empty? alive-nodes)
-                              (throw+ (Exception. "No available node now!"))
-                              (rand-nth alive-nodes))))
-            service-url (str "hstream://" target-node ":6570")]
-        (info "+++++++++ open with" node "(actual" target-node ") +++++++++")
-        (let [[got-node got-client] (get-client-start-from-url
-                                      service-url
-                                      (* 1000 (:grpc-timeout opts)))]
-          (when (nil? got-client) (throw+ (Exception. "I got a nil client!")))
-          (-> this
-              (assoc :client got-client
-                     :target-node got-node)))))
-    (setup! [_ _] (info "-------- SETTING UP DONE ---------"))
+      (client-on-node this test node))
+    (setup! [_ _])
     (invoke! [this _ op]
-      (try+
-        (case (:f op)
-          :add (let [is-done (agent nil)
-                     test-data {:key (:value op)}
-                     producer (create-producer (:client this)
-                                               (:stream op)
-                                               (* 1000 (:grpc-timeout opts)))]
-                 (send-off
-                   is-done
-                   (fn [_]
-                     (try+ (let [write-future
-                                  (if (zero? (:max-partitions opts))
-                                    (write-data producer test-data)
-                                    (write-data
-                                      producer
-                                      test-data
-                                      ;; partitionKey
-                                      (str (mod (+ (:value op)
-                                                   (rand-int (:max-partitions
-                                                               opts)))
-                                                (:max-partitions opts)))))]
-                            (.join write-future)
-                            {:status :done, :details nil})
-                           (catch Object _ {:status :error, :details &throw-context}))))
-                 (if (await-for (* 1000 (:write-timeout opts)) is-done)
-                   (let [done-result @is-done]
-                     (case (:status done-result)
-                       :done (assoc op
-                               :type :ok
-                               :target-node (:target-node this))
-                       :error (assoc op
-                                :type :fail
-                                :error (pprint (:details done-result))
-                                :target-node (:target-node this)
-                                :extra "happened in send-off")))
-                   (assoc op
-                     :type :fail
-                     :error :unknown-timeout
-                     :target-node (:target-node this))))
-          :sub (let [test-subscription-id (str "subscription_" (:stream op))]
-                 (subscribe (:client this)
-                            test-subscription-id
-                            (:stream op)
-                            subscription-ack-timeout)
-                 (assoc op
-                   :type :ok
-                   :sub-id test-subscription-id
-                   :target-node (:target-node this)))
-          :create (do (create-stream (:client this)
-                                     (:stream op)
-                                     (:max-partitions opts))
-                      (Thread/sleep (* 1000 5)) ;; Very important: wait for the
-                      ;; stream to be ready. Or
-                      ;; creating subs will be very
-                      ;; slow!
-                      (assoc op
-                        :type :ok
-                        :target-node (:target-node this)))
-          :read (let [is-done (agent false)
-                      subscription-result (get subscription-results
-                                               (:consumer-id op))
-                      test-subscription-id (str "subscription_" (:stream op))
-                      consumer (consume (:client this)
-                                        test-subscription-id
-                                        (gen-collect-value-callback
-                                          subscription-result))]
-                  (send-off is-done
-                            (fn [_]
-                              (Thread/sleep (* 1000 (:fetch-wait-time opts)))
-                              true))
-                  (await is-done)
-                  (.awaitTerminated (.stopAsync consumer))
-                  (assoc op
-                    :type :ok
-                    :value @subscription-result
-                    :target-node (:target-node this))))
-        (catch Object _
-          (assoc op
-            :type :fail
-            :error (pprint &throw-context)
-            :target-node (:target-node this)
-            :extra "happened in op"))))
-    (teardown! [_ _] (info "++++++++++++++++ teardown! ++++++++++++++++"))
+      (let [op (assoc op :target-node (:target-node this))]
+        (cond
+          (nil? (:client this))
+          (assoc op :type :info :error :no-alive-node)
+
+          :else
+          (case (:f op)
+            :add (op-with-errors op
+                   (let [test-data {:key (:value op)}
+                         producer (create-producer (:client this)
+                                                   (:stream op)
+                                                   (* 1000 (:grpc-timeout opts)))
+                         write-future (if (zero? (:max-partitions opts))
+                                        (write-data producer test-data)
+                                        (let [partition-key (-> (:value op)
+                                                                (+ (rand-int (:max-partitions opts)))
+                                                                (mod (:max-partitions opts))
+                                                                (str))
+                                              ]
+                                          (write-data producer test-data partition-key)))
+                         ]
+                     (-> write-future
+                         (.orTimeout (:write-timeout opts) TimeUnit/SECONDS)
+                         (.join)
+                         (#(assoc op :type :ok :record-id %)))))
+            :sub (op-with-errors op
+                   (let [test-subscription-id (str "subscription_" (:stream op))]
+                     (subscribe (:client this)
+                                test-subscription-id
+                                (:stream op)
+                                subscription-ack-timeout)
+                     (assoc op :type :ok)))
+            :create (op-with-errors op
+                      (do (create-stream (:client this)
+                                         (:stream op)
+                                         (:max-partitions opts))
+                          (Thread/sleep (* 1000 5))
+                          ;; Very important: wait for the stream to be ready. Or creating subs will be very slow!
+                          (assoc op :type :ok)))
+            :read   (op-with-errors op
+                      (let [subscription-result (get subscription-results
+                                                     (:consumer-id op))
+                            test-subscription-id (str "subscription_" (:stream op))
+                            consumer (consume (:client this)
+                                              test-subscription-id
+                                              (gen-collect-value-callback
+                                               subscription-result))]
+                        (Thread/sleep (* 1000 (:fetch-wait-time opts)))
+                        (.awaitTerminated (.stopAsync consumer))
+                        (assoc op :type :ok :value @subscription-result)))))))
+    (teardown! [_ _])
     (close! [this _]
-      (dosync (println ">>> Closing client...") (.close (:client this)))))
+      (try+ (.close (:client this))
+            (catch Object _))))
 
 (def cli-opts
   "Additional command line options."

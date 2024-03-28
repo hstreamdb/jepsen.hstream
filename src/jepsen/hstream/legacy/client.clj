@@ -104,7 +104,7 @@
 
 (defn write-data
   "data-to-write is a map: {key1 value1 key2 value2 ...}
-  returns: record-id"
+  returns: CompletableFuture<record-id>"
   ([producer data-to-write]
    (let [hrecord (map-to-hrecord data-to-write)
          record (.build (.hRecord (Record/newBuilder) hrecord))]
@@ -142,28 +142,34 @@
 
 (defn example-hrecord-callback
   [received-hrecord responder]
-  (let [record-id (.getRecordId received-hrecord)
-        hrecord (.getHRecord received-hrecord)]
-    (info "~~~ Received: ID = " record-id " contents = " hrecord)
-    (.ack responder)))
+  (try+
+   (let [record-id (.getRecordId received-hrecord)
+         hrecord (.getHRecord received-hrecord)]
+     (info "~~~ Received: ID = " record-id " contents = " hrecord)
+     (.ack responder))
+   (catch Object _)))
 
 (defn gen-collect-hrecord-callback
   [ref]
   (fn [received-hrecord responder]
-    (dosync (let [record-id (.getRecordId received-hrecord)
-                  hrecord (.getHRecord received-hrecord)]
-              (alter ref conj {:record-id record-id, :hrecord hrecord})
-              (.ack responder)))))
+    (try+
+     (dosync (let [record-id (.getRecordId received-hrecord)
+                   hrecord (.getHRecord received-hrecord)]
+               (alter ref conj {:record-id record-id, :hrecord hrecord})
+               (.ack responder)))
+     (catch Object _))))
 
 (defn gen-collect-value-callback
   [ref]
   (fn [received-hrecord responder]
-    (let [record-id (.getRecordId received-hrecord)
-          hrecord (.getHRecord received-hrecord)
-          value (parse-int (.getString hrecord ":key"))]
-      (dosync
+    (try+
+     (let [record-id (.getRecordId received-hrecord)
+           hrecord (.getHRecord received-hrecord)
+           value (parse-int (.getString hrecord ":key"))]
+       (dosync
         (alter ref conj value)
         (if (in? @ref value)
           (.ack responder)
           (warn
-            "Client got an message, but failed to acturally RECEIVING it!"))))))
+           "Client got an message, but failed to acturally RECEIVING it!"))))
+    (catch Object _))))
