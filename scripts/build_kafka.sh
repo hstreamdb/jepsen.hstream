@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-docker-compose --file ./docker/docker-compose-kafka.yml \
+docker compose --file ./docker/docker-compose-kafka.yml \
                --compatibility \
                -p jepsen-kafka \
                build \
