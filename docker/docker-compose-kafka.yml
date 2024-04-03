@@ -15,8 +15,6 @@ x-node:
     - "jepsen-kafka-shared:/var/jepsen/shared"
     - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
     - "/tmp:/tmp:rw"
-  networks:
-    - jepsen-kafka
   cap_add:
     - ALL
   ports:
@@ -38,8 +36,6 @@ x-ld:
     - "jepsen-kafka-shared:/var/jepsen/shared"
     - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
     - "/tmp:/tmp:rw"
-  networks:
-    - jepsen-kafka
   cap_add:
     - ALL
   ports:
@@ -58,8 +54,10 @@ secrets:
     file: ./secret/authorized_keys
 
 networks:
-  jepsen-kafka:
-    driver: bridge
+  jepsen-kafka-network:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
 
 services:
   ld-admin:
@@ -80,7 +78,8 @@ services:
       - "4443"
       - "6440"
     networks:
-      - jepsen-kafka
+      jepsen-kafka-network:
+        ipv4_address: 172.20.0.6
     cap_add:
       - ALL
     volumes:
@@ -103,7 +102,8 @@ services:
       - "2888"
       - "3888"
     networks:
-      - jepsen-kafka
+      jepsen-kafka-network:
+        ipv4_address: 172.20.0.7
     cap_add:
       - ALL
     volumes:
@@ -129,27 +129,38 @@ services:
       - "22"
       - "8080"
     networks:
-      - jepsen-kafka
+      jepsen-kafka-network:
+        ipv4_address: 172.20.0.8
     volumes:
       - "../:/home/Work"
       - "jepsen-kafka-shared:/var/jepsen/shared"
+      - "/home/commelina/.m2/:/root/.m2"
 
   hstore-1:
     << : *logdevice-node
     container_name: jepsen-kafka-ld1
     hostname: ld1
+    networks:
+      jepsen-kafka-network:
+        ipv4_address: 172.20.0.21
     depends_on:
       - zookeeper
   hstore-2:
     << : *logdevice-node
     container_name: jepsen-kafka-ld2
     hostname: ld2
+    networks:
+      jepsen-kafka-network:
+        ipv4_address: 172.20.0.22
     depends_on:
       - zookeeper
   hstore-3:
     << : *logdevice-node
     container_name: jepsen-kafka-ld3
     hostname: ld3
+    networks:
+      jepsen-kafka-network:
+        ipv4_address: 172.20.0.23
     depends_on:
       - zookeeper
 
@@ -157,6 +168,9 @@ services:
     << : *hserver-node
     container_name: jepsen-kafka-n1
     hostname: n1
+    networks:
+      jepsen-kafka-network:
+        ipv4_address: 172.20.0.11
     depends_on:
       - zookeeper
       - hstore-1
@@ -166,6 +180,9 @@ services:
     << : *hserver-node
     container_name: jepsen-kafka-n2
     hostname: n2
+    networks:
+      jepsen-kafka-network:
+        ipv4_address: 172.20.0.12
     depends_on:
       - zookeeper
       - hstore-1
@@ -175,6 +192,9 @@ services:
     << : *hserver-node
     container_name: jepsen-kafka-n3
     hostname: n3
+    networks:
+      jepsen-kafka-network:
+        ipv4_address: 172.20.0.13
     depends_on:
       - zookeeper
       - hstore-1
@@ -184,6 +204,9 @@ services:
     << : *hserver-node
     container_name: jepsen-kafka-n4
     hostname: n4
+    networks:
+      jepsen-kafka-network:
+        ipv4_address: 172.20.0.14
     depends_on:
       - zookeeper
       - hstore-1
@@ -193,6 +216,9 @@ services:
     << : *hserver-node
     container_name: jepsen-kafka-n5
     hostname: n5
+    networks:
+      jepsen-kafka-network:
+        ipv4_address: 172.20.0.15
     depends_on:
       - zookeeper
       - hstore-1

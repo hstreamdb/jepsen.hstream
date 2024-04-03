@@ -59,13 +59,14 @@ CMD /init-ssh.sh && \
     --db hstream \
     --workload queue \
     --sub-via subscribe \
-    --time-limit 120 \
+    --time-limit 180 \
     --final-time-limit 120 \
     --key-dist uniform \
     --key-count 32 \
     ##<<<
     # This value is enough. A larger one can make elle exhausted.
-    --concurrency 20 \
+    --concurrency 10 \
+    --rate 10 \
     ##>>>
     ##<<<
     # When writes of a key exceed the limit, the generator will pick
@@ -95,7 +96,9 @@ CMD /init-ssh.sh && \
     ##>>>
     #-------------- nemesis options --------------#
     --nemesis none \
+    --nemesis-interval 15 \
     --crash-clients true \
+    --tcpdump \
     # --crash-client-interval 30 \ # FIXME: parse error, what happened?
     # --tcpdump \ # TODO: sadly, tcpdump is only available for redpanda.
     #-------------- default options --------------#

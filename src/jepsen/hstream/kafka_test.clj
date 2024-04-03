@@ -201,7 +201,7 @@
         db            (case (:db opts)
                         :redpanda (db.redpanda/db)
                         :kafka    (db.kafka/db)
-                        :hstream  (db.hstream/db "0.19.0"))
+                        :hstream  (db.hstream/db "0.19.0" (:tcpdump opts)))
         nemesis       (nemesis/package
                         {:db        db
                          :nodes     (:nodes opts)
