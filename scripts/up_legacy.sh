@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-docker-compose --file ./docker/docker-compose.yml \
+docker compose --file ./docker/docker-compose.yml \
                --compatibility \
                -p jepsen \
                up \
