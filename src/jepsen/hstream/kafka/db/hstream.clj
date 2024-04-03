@@ -63,15 +63,22 @@
             "But in fact we did nothing here."))
 
     db/Process
+    ;; WARNING: Starting hstream server is not idempotent now.
+    ;;          However, the test usually call [:start :all].
+    ;;          So we have to check if the server is already running.
+    ;; FIXME: The checking function 'is-hserver-on-node-dead?' is not
+    ;;        well implemented...
     (start! [this test node]
-      (c/su
-       (apply (partial cu/start-daemon!
-                       {:logfile (f-hstream-log-file node)
-                        :pidfile (f-hstream-pid-file node)
-                        :chdir "/"
-                        :make-pidfile? true}
-                       hstream)
-              (f-hstream-args node))))
+      (if (legacy-nemesis/is-hserver-on-node-dead? node)
+        (c/su
+         (apply (partial cu/start-daemon!
+                         {:logfile (f-hstream-log-file node)
+                          :pidfile (f-hstream-pid-file node)
+                          :chdir "/"
+                          :make-pidfile? true}
+                         hstream)
+                (f-hstream-args node)))
+        :skipped-by-us))
     (kill! [this test node]
       (c/su
        (cu/stop-daemon! hstream (f-hstream-pid-file node))))
