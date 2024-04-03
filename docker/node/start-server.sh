@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SERVER_ID=$(shuf -i 1-4294967296 -n 1)
+SERVER_ID=$(echo $(hostname) | cut -c 2-) # n_i -> i
 MY_IP=$(hostname -I | head -n1 | awk '{print $1;}')
 hstream-server \
     --config-path /etc/hstream/config.yaml \
