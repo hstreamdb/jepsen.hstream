@@ -1,0 +1,151 @@
+version: '3.7'
+x-node:
+  &hserver-node
+  build: ./node-hornbill
+  env_file:
+    - ./secret/node.env
+    - ./secret/control.env
+  secrets:
+    - authorized_keys
+  tty: true
+  tmpfs:
+    - /run:size=100M
+    - /run/lock:size=100M
+  volumes:
+    - "jepsen-hornbill-shared:/var/jepsen/shared"
+    - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+    - "/tmp:/tmp:rw"
+  cap_add:
+    - ALL
+  ports:
+    - ${JEPSEN_PORT:-22}
+
+volumes:
+  jepsen-hornbill-shared:
+
+secrets:
+  authorized_keys:
+    file: ./secret/authorized_keys
+
+networks:
+  jepsen-hornbill-network:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+services:
+  fdb:
+    container_name: jepsen-hornbill-fdb
+    hostname: fdb
+    build: ./fdb-hornbill
+    env_file: ./secret/node.env
+    secrets:
+      - authorized_keys
+    tmpfs:
+      - /run:size=100M
+      - /run/lock:size=100M
+    expose:
+      - "4500"
+    networks:
+      jepsen-hornbill-network:
+        ipv4_address: 172.20.0.6
+    cap_add:
+      - ALL
+    volumes:
+      - "jepsen-hornbill-shared:/var/jepsen/shared"
+      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+      - "/tmp:/tmp:rw"
+
+  meta:
+    container_name: jepsen-hornbill-meta
+    hostname: meta
+    depends_on:
+      - fdb
+    build: ./meta-hornbill
+    env_file: ./secret/node.env
+    secrets:
+      - authorized_keys
+    tmpfs:
+      - /run:size=100M
+      - /run/lock:size=100M
+    expose:
+      - "22"
+      - "8964"
+    networks:
+      jepsen-hornbill-network:
+        ipv4_address: 172.20.0.7
+    cap_add:
+      - ALL
+    volumes:
+      - "jepsen-hornbill-shared:/var/jepsen/shared"
+      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+      - "/tmp:/tmp:rw"
+
+  control:
+    container_name: jepsen-hornbill-control
+    hostname: control-hornbill
+    depends_on:
+      - meta
+      - hserver-1
+      - hserver-2
+      - hserver-3
+      - hserver-4
+      - hserver-5
+    build: ./control-hornbill
+    env_file: ./secret/control.env
+    privileged: true
+    expose:
+      - "22"
+      - "8080"
+    networks:
+      jepsen-hornbill-network:
+        ipv4_address: 172.20.0.8
+    volumes:
+      - "jepsen-hornbill-shared:/var/jepsen/shared"
+      - "/home/commelina/.m2/:/root/.m2"
+
+  hserver-1:
+    << : *hserver-node
+    container_name: jepsen-hornbill-n1
+    hostname: n1
+    networks:
+      jepsen-hornbill-network:
+        ipv4_address: 172.20.0.11
+    depends_on:
+      - meta
+  hserver-2:
+    << : *hserver-node
+    container_name: jepsen-hornbill-n2
+    hostname: n2
+    networks:
+      jepsen-hornbill-network:
+        ipv4_address: 172.20.0.12
+    depends_on:
+      - meta
+  hserver-3:
+    << : *hserver-node
+    container_name: jepsen-hornbill-n3
+    hostname: n3
+    networks:
+      jepsen-hornbill-network:
+        ipv4_address: 172.20.0.13
+    depends_on:
+      - meta
+  hserver-4:
+    << : *hserver-node
+    container_name: jepsen-hornbill-n4
+    hostname: n4
+    networks:
+      jepsen-hornbill-network:
+        ipv4_address: 172.20.0.14
+    depends_on:
+      - meta
+  hserver-5:
+    << : *hserver-node
+    container_name: jepsen-hornbill-n5
+    hostname: n5
+    networks:
+      jepsen-hornbill-network:
+        ipv4_address: 172.20.0.15
+    depends_on:
+      - meta
