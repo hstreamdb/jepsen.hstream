@@ -101,8 +101,8 @@ services:
       jepsen-hornbill-network:
         ipv4_address: 172.20.0.8
     volumes:
+      - "../:/home/Work"
       - "jepsen-hornbill-shared:/var/jepsen/shared"
-      - "/home/commelina/.m2/:/root/.m2"
 
   hserver-1:
     << : *hserver-node
