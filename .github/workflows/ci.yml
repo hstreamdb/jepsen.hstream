@@ -99,3 +99,49 @@ jobs:
             !store/current/
             !store/latest/
           retention-days: 7
+
+  hornbill-test:
+    runs-on: ubuntu-latest
+    name: Jepsen test for hornbill
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: "recursive"
+
+      - name: Prepare environment for test
+        run: |
+          cd ./docker
+          ./init-secret.sh
+
+      - name: Build base image
+        run: |
+          ./scripts/build_hornbill_base.sh
+
+      - name: Build test images (hornbill)
+        run: |
+          ./scripts/build_hornbill.sh
+
+      - name: Check disk space
+        run: |
+          df -h
+
+      - name: Start test cluster and run jepsen test (hornbill)
+        run: |
+          ./scripts/up_hornbill.sh
+
+      - name: Cleanup resources (hornbill)
+        run: |
+          ./scripts/clean_hornbill.sh
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        if: ${{ success() }} || ${{ failure() }}
+        with:
+          name: hornbill-result
+          path: |
+            store/
+            /tmp/*.log
+            !store/current/
+            !store/latest/
+          retention-days: 7
