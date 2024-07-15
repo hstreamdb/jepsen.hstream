@@ -173,6 +173,10 @@
                                            UnknownServerException
                                            )))
 
+(def message-prefix-bytes
+  "How many bytes should we prefix each message with?"
+  (* 1 1024))
+
 (def partition-count
   "How many partitions per topic?"
   4)
@@ -249,7 +253,7 @@
                             (swap! extant-topics conj topic))
                 ; Send message to Redpanda
                 partition (k->partition k)
-                record (rc/producer-record topic (k->partition k) nil v)
+                record (rc/producer-record topic (k->partition k) nil v message-prefix-bytes)
                 res    ^RecordMetadata (-> producer
                                            (.send record)
                                            (deref 10000 nil)

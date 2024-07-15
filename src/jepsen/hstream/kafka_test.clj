@@ -260,6 +260,16 @@
   [[nil "--acks ACKS" "What level of acknowledgement should our producers use? Default is unset (uses client default); try 1 or 'all'."
     :default nil]
 
+   [nil "--producer-linger-ms" "How long should producers wait before sending a batch? Note there is also a --batch-max-bytes option."
+    :default nil
+    :parse-fn parse-long
+    :validate validate-non-neg]
+
+   [nil "--batch-max-bytes" "Max bytes of a batch to produce. Note there is also a --producer-linger-ms option."
+    :default nil
+    :parse-fn parse-long
+    :validate validate-non-neg]
+
    [nil "--auto-offset-reset BEHAVIOR" "How should consumers handle it when there's no initial offset in Kafka?"
    :default nil]
 

@@ -34,7 +34,7 @@ CMD /init-ssh-control.sh && \
     ##<<<
     # This value is enough. A larger one can make elle exhausted.
     --concurrency 10 \
-    --rate 10 \
+    --rate 20 \
     ##>>>
     ##<<<
     # When writes of a key exceed the limit, the generator will pick
@@ -53,6 +53,12 @@ CMD /init-ssh-control.sh && \
     # We disable producer retry now to avoid dupicate writes.
     # It may be turned on in the future to perform more tests...
     --retries 0 \
+    ##>>>
+    ##<<<
+    # We allow the producer to send messages in batch, but do not
+    # be too large.
+    --producer-linger-ms 2000 \
+    --batch-max-bytes 10240 \
     ##>>>
     #-------------- txns options --------------#
     ##<<<
@@ -82,6 +88,7 @@ CMD /init-ssh-control.sh && \
     ##<<<
     # For kafka test, the following options are hard-coded,
     # see workload/queue.clj and workload/list_append.clj.
+    # - message-prefix-bytes = 1024
     # - replication-factor = 3
     # - partition-count = 4
     # - poll-ms = 100

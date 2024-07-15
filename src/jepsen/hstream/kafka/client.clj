@@ -147,10 +147,13 @@
            ProducerConfig/RECONNECT_BACKOFF_MAX_MS_CONFIG 1000
            ProducerConfig/SOCKET_CONNECTION_SETUP_TIMEOUT_MS_CONFIG 500
            ProducerConfig/SOCKET_CONNECTION_SETUP_TIMEOUT_MAX_MS_CONFIG 1000
-
-           ;;
-           ProducerConfig/LINGER_MS_CONFIG 1000
            }
+    (not= nil (:producer-linger-ms opts))
+    (assoc ProducerConfig/LINGER_MS_CONFIG (:producer-linger-ms opts))
+
+    (not= nil (:batch-max-bytes opts))
+    (assoc ProducerConfig/BATCH_SIZE_CONFIG (:batch-max-bytes opts))
+
     (not= nil (:acks opts))
     (assoc ProducerConfig/ACKS_CONFIG (:acks opts))
 
@@ -313,10 +316,14 @@
 
 ;; FIXME: Runtime configuration for extra bytes
 (defn ^ProducerRecord producer-record
-  "Constructs a ProducerRecord from a topic, partition, key, and value."
-  [topic partition key value]
-  (let [extra-bytes-len (* 1 1024)
-        value-bytes (long-to-bytes value)
+  "Constructs a ProducerRecord from a topic, partition, key, value and
+   how many bytes to prefix the value with. Note the actual value is a
+   long, and the prefixed bytes are only used to simulate large messages.
+   The message will be encoded to a byte array of size (8 + extra-bytes-len).
+   The prefixed bytes will be just dropped when reading the message back.
+  "
+  [topic partition key value extra-bytes-len]
+  (let [value-bytes (long-to-bytes value)
         extra-bytes (byte-array extra-bytes-len (byte \A))
         value-to-write (byte-array (+ extra-bytes-len 8) (concat value-bytes extra-bytes))]
     (ProducerRecord. topic (int partition) key value-to-write)))
