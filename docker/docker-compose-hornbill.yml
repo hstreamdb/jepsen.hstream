@@ -103,7 +103,6 @@ services:
     volumes:
       - "../:/home/Work"
       - "jepsen-hornbill-shared:/var/jepsen/shared"
-      - "/home/commelina/.m2/:/root/.m2"
 
   hserver-1:
     << : *hserver-node
