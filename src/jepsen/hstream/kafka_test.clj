@@ -11,11 +11,11 @@
             [jepsen.hstream.kafka [nemesis :as nemesis]]
             [jepsen.hstream.kafka.db [kafka    :as db.kafka]
                                      [hstream  :as db.hstream]
-                                     [redpanda :as db.redpanda]]
+                                     [redpanda :as db.redpanda]
+                                     [hornbill :as hornbill]]
             [jepsen.hstream.kafka.workload [list-append :as list-append]
                                            [queue :as queue]]
-            [slingshot.slingshot :refer [try+ throw+]]
-            [jepsen.hstream.kafka.db.hstream :as db.hstream])
+            [slingshot.slingshot :refer [try+ throw+]])
   (:import (org.apache.http.impl.client InternalHttpClient)))
 
 (def workloads
@@ -174,7 +174,8 @@
   (str (case (:db opts)
          :kafka "kafka"
          :redpanda (str "redpanda " (short-version opts))
-         :hstream "kafka")
+         :hstream "kafka"
+         :hornbill "hornbill")
        " " (name (:workload opts))
        (when (:txn opts) " txn")
        " "
@@ -201,7 +202,8 @@
         db            (case (:db opts)
                         :redpanda (db.redpanda/db)
                         :kafka    (db.kafka/db)
-                        :hstream  (db.hstream/db "0.19.0" (:tcpdump opts)))
+                        :hstream  (db.hstream/db "0.19.0" (:tcpdump opts))
+                        :hornbill (hornbill/db "1.0.0-M1" (:tcpdump opts)))
         nemesis       (nemesis/package
                         {:db        db
                          :nodes     (:nodes opts)
@@ -260,12 +262,12 @@
   [[nil "--acks ACKS" "What level of acknowledgement should our producers use? Default is unset (uses client default); try 1 or 'all'."
     :default nil]
 
-   [nil "--producer-linger-ms" "How long should producers wait before sending a batch? Note there is also a --batch-max-bytes option."
+   [nil "--producer-linger-ms INT" "How long should producers wait before sending a batch? Note there is also a --batch-max-bytes option."
     :default nil
     :parse-fn parse-long
     :validate validate-non-neg]
 
-   [nil "--batch-max-bytes" "Max bytes of a batch to produce. Note there is also a --producer-linger-ms option."
+   [nil "--batch-max-bytes INT" "Max bytes of a batch to produce. Note there is also a --producer-linger-ms option."
     :default nil
     :parse-fn parse-long
     :validate validate-non-neg]
@@ -281,10 +283,10 @@
     :parse-fn read-string
     :validate [#(and (number? %) (pos? %)) "must be a positive number"]]
 
-   [nil "--db TYPE" "Which DB do we test? Either `hstream` (default), `redpanda` or `kafka`"
+   [nil "--db TYPE" "Which DB do we test? Either `hstream` (default), `redpanda`, `kafka` or `hornbill`."
     :default :hstream
     :parse-fn keyword
-    :validate [#(some #{%} '(:hstream :kafka :redpanda)) "Must be one of hstream, kafka or redpanda"]]
+    :validate [#(some #{%} '(:hstream :kafka :redpanda :hornbill)) "Must be one of hstream, kafka, hornbill or redpanda"]]
 
    [nil "--db-targets TARGETS" "A comma-separated list of nodes to pause/kill/etc; e.g. one,all"
     ;:default [:primaries :all]

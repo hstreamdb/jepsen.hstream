@@ -24,7 +24,7 @@ CMD /init-ssh-control.sh && \
     ####################### start test #######################
     lein with-profile kafka run test \
     #-------------- basic options --------------#
-    --db hstream \
+    --db hornbill \
     --workload queue \
     --sub-via subscribe \
     --time-limit 180 \
@@ -69,7 +69,7 @@ CMD /init-ssh-control.sh && \
     --no-server-idempotence \
     ##>>>
     #-------------- nemesis options --------------#
-    --nemesis none \
+    --nemesis all \
     --nemesis-interval 15 \
     --crash-clients true \
     --tcpdump \
