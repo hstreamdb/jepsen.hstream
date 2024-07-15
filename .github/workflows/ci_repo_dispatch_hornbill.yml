@@ -1,0 +1,67 @@
+name: Jepsen CI on Repository Dispatch (Hornbill)
+on:
+  repository_dispatch:
+    branches: [master]
+    types: hornbill_image_updated
+
+jobs:
+  hornbill-test:
+    runs-on: ubuntu-latest
+    name: Jepsen test for hornbill
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: "recursive"
+
+      - name: Prepare environment for test
+        run: |
+          cd ./docker
+          ./init-secret.sh
+
+      - name: Build base image
+        run: |
+          ./scripts/build_hornbill_base.sh
+
+      - name: Build test images (hornbill)
+        run: |
+          ./scripts/build_hornbill.sh
+
+      - name: Check disk space
+        run: |
+          df -h
+
+      - name: Start test cluster and run jepsen test (hornbill)
+        run: |
+          ./scripts/up_hornbill.sh
+
+      - name: Cleanup resources (hornbill)
+        run: |
+          ./scripts/clean_hornbill.sh
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        if: ${{ success() }} || ${{ failure() }}
+        with:
+          name: hornbill-result
+          path: |
+            store/
+            /tmp/*.log
+            !store/current/
+            !store/latest/
+          retention-days: 7
+
+      - name: Post to Slack channel
+        if: ${{ success() }} || ${{ failure() }}
+        run: |
+          if [ "${{ job.status }}" = 'success' ]
+            then JOB_STATUS_EMOJI=':white_check_mark:'
+            else JOB_STATUS_EMOJI=':x:'
+          fi
+          curl                                  \
+            -X POST                             \
+            -H 'Content-Type: application/json' \
+            ${{ secrets.SLACK_WEBHOOK_URL }}    \
+            --data '{"GitHub Action build result": "${{ job.status }} '"$JOB_STATUS_EMOJI"'",
+                     "Commit info": "https://github.com/hstreamdb/hornbill/commit/${{ github.event.client_payload.commit_sha }}",
+                     "Action summary": "https://github.com/'"$GITHUB_REPOSITORY"'/actions/runs/'"$GITHUB_RUN_ID"'"}'
