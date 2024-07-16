@@ -10,6 +10,7 @@
            (java.time Duration)
            (java.util Properties)
            (java.util.concurrent ExecutionException)
+           (org.apache.kafka.clients CommonClientConfigs)
            (org.apache.kafka.clients.admin Admin
                                            AdminClientConfig
                                            NewTopic)
@@ -93,10 +94,16 @@
      300
 
      ConsumerConfig/SESSION_TIMEOUT_MS_CONFIG
-     6000 ; Bounded by server
+     3000 ; Bounded by server
 
      ConsumerConfig/CONNECTIONS_MAX_IDLE_MS_CONFIG
      60000
+
+     ConsumerConfig/MAX_POLL_INTERVAL_MS_CONFIG
+     3000
+
+     CommonClientConfigs/REBALANCE_TIMEOUT_MS_CONFIG
+     3000
 
      ; ConsumerConfig/DEFAULT_ISOLATION_LEVEL
      ; ???
@@ -147,10 +154,13 @@
            ProducerConfig/RECONNECT_BACKOFF_MAX_MS_CONFIG 1000
            ProducerConfig/SOCKET_CONNECTION_SETUP_TIMEOUT_MS_CONFIG 500
            ProducerConfig/SOCKET_CONNECTION_SETUP_TIMEOUT_MAX_MS_CONFIG 1000
-
-           ;;
-           ProducerConfig/LINGER_MS_CONFIG 1000
            }
+    (not= nil (:producer-linger-ms opts))
+    (assoc ProducerConfig/LINGER_MS_CONFIG (:producer-linger-ms opts))
+
+    (not= nil (:batch-max-bytes opts))
+    (assoc ProducerConfig/BATCH_SIZE_CONFIG (:batch-max-bytes opts))
+
     (not= nil (:acks opts))
     (assoc ProducerConfig/ACKS_CONFIG (:acks opts))
 
@@ -313,10 +323,14 @@
 
 ;; FIXME: Runtime configuration for extra bytes
 (defn ^ProducerRecord producer-record
-  "Constructs a ProducerRecord from a topic, partition, key, and value."
-  [topic partition key value]
-  (let [extra-bytes-len (* 1 1024)
-        value-bytes (long-to-bytes value)
+  "Constructs a ProducerRecord from a topic, partition, key, value and
+   how many bytes to prefix the value with. Note the actual value is a
+   long, and the prefixed bytes are only used to simulate large messages.
+   The message will be encoded to a byte array of size (8 + extra-bytes-len).
+   The prefixed bytes will be just dropped when reading the message back.
+  "
+  [topic partition key value extra-bytes-len]
+  (let [value-bytes (long-to-bytes value)
         extra-bytes (byte-array extra-bytes-len (byte \A))
         value-to-write (byte-array (+ extra-bytes-len 8) (concat value-bytes extra-bytes))]
     (ProducerRecord. topic (int partition) key value-to-write)))

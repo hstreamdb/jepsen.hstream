@@ -59,14 +59,14 @@ CMD /init-ssh.sh && \
     --db hstream \
     --workload queue \
     --sub-via subscribe \
-    --time-limit 180 \
-    --final-time-limit 120 \
+    --time-limit 360 \
+    --final-time-limit 60 \
     --key-dist uniform \
-    --key-count 32 \
+    --key-count 4 \
     ##<<<
     # This value is enough. A larger one can make elle exhausted.
     --concurrency 10 \
-    --rate 10 \
+    --rate 20 \
     ##>>>
     ##<<<
     # When writes of a key exceed the limit, the generator will pick
@@ -85,6 +85,16 @@ CMD /init-ssh.sh && \
     # We disable producer retry now to avoid dupicate writes.
     # It may be turned on in the future to perform more tests...
     --retries 0 \
+    ##>>>
+    ##<<<
+    # We allow the producer to send messages in batch, but do not
+    # be too large.
+    --producer-linger-ms 3000 \
+    --batch-max-bytes 10240 \
+    ##>>>
+    # auto reset offset to earliest to prevent "offset not start from 0"
+    ##<<<
+    --auto-offset-reset earliest \
     ##>>>
     #-------------- txns options --------------#
     ##<<<
@@ -105,9 +115,7 @@ CMD /init-ssh.sh && \
     ##<<<
     # The following opts is client default (3.7.0) but we
     # specify them explicitly here for clarity.
-    --auto-offset-reset latest \
     --enable-auto-commit \
-    --enable-server-auto-create-topics \
     --isolation-level read_uncommitted \
     --acks all && \
     ##>>>

@@ -16,10 +16,13 @@
                                            TimeoutException
                                            UnknownTopicOrPartitionException
                                            )))
+(def message-prefix-bytes
+  "How many bytes should we prefix each message with?"
+  (* 1 1024))
 
 (def partition-count
   "How many partitions per topic?"
-  4)
+  2)
 
 (defn k->topic
   "Turns a logical key into a topic."
@@ -77,7 +80,7 @@
           [f k nil]))
 
       :append
-      (let [record (rc/producer-record topic (k->partition k) nil v)
+      (let [record (rc/producer-record topic (k->partition k) nil v message-prefix-bytes)
             res    @(.send producer record)]
         mop))))
 
