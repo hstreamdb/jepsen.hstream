@@ -10,6 +10,7 @@
            (java.time Duration)
            (java.util Properties)
            (java.util.concurrent ExecutionException)
+           (org.apache.kafka.clients CommonClientConfigs)
            (org.apache.kafka.clients.admin Admin
                                            AdminClientConfig
                                            NewTopic)
@@ -93,10 +94,16 @@
      300
 
      ConsumerConfig/SESSION_TIMEOUT_MS_CONFIG
-     6000 ; Bounded by server
+     3000 ; Bounded by server
 
      ConsumerConfig/CONNECTIONS_MAX_IDLE_MS_CONFIG
      60000
+
+     ConsumerConfig/MAX_POLL_INTERVAL_MS_CONFIG
+     3000
+
+     CommonClientConfigs/REBALANCE_TIMEOUT_MS_CONFIG
+     3000
 
      ; ConsumerConfig/DEFAULT_ISOLATION_LEVEL
      ; ???

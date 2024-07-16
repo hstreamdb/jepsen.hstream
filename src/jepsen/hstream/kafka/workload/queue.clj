@@ -179,7 +179,7 @@
 
 (def partition-count
   "How many partitions per topic?"
-  4)
+  2)
 
 (def replication-factor
   "What replication factor should we use for each topic?"
@@ -187,7 +187,7 @@
 
 (def poll-ms
   "How long should we poll for, in ms?"
-  100)
+  3000)
 
 (defn k->topic
   "Turns a logical key into a topic."
@@ -480,7 +480,10 @@
 
          (catch UnknownServerException e#
            (assoc ~op :type :info, :error [:unknown-server-exception
-                                          (.getMessage e#)]))
+                                           (str (.getMessage e#)
+                                                (.getCause e#)
+                                                (doall (map #(.toString %) (.getStackTrace e#))))
+                                                ]))
 
          (catch TimeoutException _#
            (assoc ~op :type :info, :error :kafka-timeout))
@@ -652,7 +655,10 @@
                          topics
                          (rc/logging-rebalance-listener rebalance-log))
           (rc/subscribe! consumer topics))
-        (assoc op :type :ok))
+
+        (let [subs (doall (seq (.subscription consumer)))
+              subs (into [] subs)]
+          (assoc op :type :ok :subs subs)))
 
       ; Apply poll/send transactions
       (:poll, :send, :txn)
@@ -677,10 +683,17 @@
                     ; https://stackoverflow.com/questions/45195010/meaning-of-sendoffsetstotransaction-in-kafka-0-11,
                     ; commitSync is more intended for non-transactional
                     ; workflows.
-                    (when (and (#{:poll :txn} (:f op))
-                               (not (:txn test))
-                               (:subscribe (:sub-via test)))
-                      (try (.commitSync consumer)
+                    (if (and (#{:poll :txn} (:f op))
+                             (not (:txn test))
+                             (:subscribe (:sub-via test)))
+                      ;; FIXME: hardcoded timeout for `commitSync` and `.position`
+                      (try (.commitSync consumer (java.time.Duration/ofMillis 2000))
+                           (let [tps  (doall (seq (.assignment consumer)))
+                                 poss (doall (map #(.position consumer % (java.time.Duration/ofMillis 1000)) tps))
+                                 tups (doall (map #(vector (.toString %1) %2) tps poss))
+                                 meta (.toString (.groupMetadata consumer))
+                                 ]
+                             (assoc op :type :ok :cur-offsets tups :group-meta meta))
                            ; If we crash during commitSync *outside* a
                            ; transaction, it might be that we poll()ed some
                            ; values in this txn which Kafka will think we
@@ -689,8 +702,8 @@
                            ; the reads, but note the lack of commit.
                            (catch RuntimeException e
                              (assoc op :type :ok
-                                    :error [:consumer-commit (.getMessage e)]))))
-                    (assoc op :type :ok)))))))))
+                                    :error [:consumer-commit (.getMessage e)])))
+                      (assoc op :type :ok))))))))))
 
   (teardown! [this test])
 
