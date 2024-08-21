@@ -1,4 +1,4 @@
-FROM foundationdb/foundationdb:7.1.61
+FROM foundationdb/foundationdb:7.3.43
 
 COPY ./start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
