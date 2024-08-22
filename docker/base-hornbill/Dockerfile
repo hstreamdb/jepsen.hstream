@@ -61,6 +61,10 @@ RUN apt-get -qy --no-install-recommends install \
 # Config SSH for Jepsen connection
 COPY ./init-ssh.sh /usr/local/bin/init-ssh
 
+# Install FoundationDB cli tool
+COPY --from=foundationdb/foundationdb:7.3.43 /usr/bin/fdbcli /usr/bin/fdbcli
+RUN chmod +x /usr/bin/fdbcli
+
 EXPOSE 22
 
 RUN chmod +x /usr/local/bin/init-ssh

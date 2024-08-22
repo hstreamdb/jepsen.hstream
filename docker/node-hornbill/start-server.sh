@@ -4,6 +4,10 @@
 
 echo "docker:docker@fdb:4500" > /etc/fdb.cluster
 
+while ! fdbcli -C /etc/fdb.cluster --exec "tenant get hstream" --timeout 1 ; do
+    sleep 1;
+done
+
 SERVER_ID=$(echo $(hostname) | cut -c 2-) # n_i -> i
 MY_IP=$(hostname -I | head -n1 | awk '{print $1;}')
 /usr/local/bin/hstream-server \
