@@ -1,12 +1,14 @@
-FDB_CLUSTER_FILE="/etc/foundationdb/fdb.cluster"
-FDB_PORT=4500
-FDB_NETWORKING_MODE="container"
-fdbcli="/usr/bin/fdbcli"
+export FDB_CLUSTER_FILE="/etc/foundationdb/fdb.cluster"
+export FDB_PORT=4500
+export FDB_NETWORKING_MODE="container"
+export fdbcli="/usr/bin/fdbcli"
 
 ## start fdb server
-/var/fdb/scripts/fdb.bash >> /tmp/$HOSTNAME.log 2>&1 &
+/var/fdb/scripts/fdb.bash >>/tmp/$HOSTNAME.log 2>&1 &
 
 ## wait & configure
+# wait for fdb.cluster file
+while [ ! -f $FDB_CLUSTER_FILE ]; do sleep 0.1; done
 # Attempt to connect. Configure the database if necessary.
 if ! $fdbcli -C $FDB_CLUSTER_FILE --exec status --timeout 1 ; then
     config="configure new single ssd; status"
