@@ -1,4 +1,4 @@
-ARG HORNBILL_IMAGE="hstreamdb/hornbill:latest"
+ARG HORNBILL_IMAGE="ghcr.io/hstreamdb/hornbill:latest"
 FROM ${HORNBILL_IMAGE}
 
 ENV DEBIAN_FRONTEND=noninteractive

@@ -1,7 +1,7 @@
-FDB_CLUSTER_FILE="/etc/foundationdb/fdb.cluster"
-FDB_PORT=4500
-FDB_NETWORKING_MODE="container"
-fdbcli="/usr/bin/fdbcli"
+export FDB_CLUSTER_FILE="/etc/foundationdb/fdb.cluster"
+export FDB_PORT=4500
+export FDB_NETWORKING_MODE="container"
+export fdbcli="/usr/bin/fdbcli"
 
 ## start fdb server
 /var/fdb/scripts/fdb.bash >> /tmp/$HOSTNAME.log 2>&1 &
