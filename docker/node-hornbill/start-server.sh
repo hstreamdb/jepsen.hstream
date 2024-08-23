@@ -11,7 +11,6 @@ done
 SERVER_ID=$(echo $(hostname) | cut -c 2-) # n_i -> i
 MY_IP=$(hostname -I | head -n1 | awk '{print $1;}')
 /usr/local/bin/hstream-server \
-    --config-path /etc/hstream/config.yaml \
     --bind-address 0.0.0.0 \
     --port 9092    \
     --metrics-port 6600 \
