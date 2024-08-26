@@ -34,8 +34,7 @@
 (defn f-hornbill-args
   "Generate the arguments for hornbill server."
   [node]
-  [:--config-path "/etc/hstream/config.yaml"
-   :--bind-address "0.0.0.0"
+  [:--bind-address "0.0.0.0"
    :--port 9092
    :--metrics-port 6600
    :--advertised-address (node-ips (keyword node))
