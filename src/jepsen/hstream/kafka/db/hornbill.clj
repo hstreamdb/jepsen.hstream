@@ -1,5 +1,6 @@
 (ns jepsen.hstream.kafka.db.hornbill
   (:require [clojure.tools.logging :refer [info]]
+            [slingshot.slingshot :refer [try+]]
             [jepsen.db :as db]
             [jepsen.control :as c]
             [jepsen.control.util :as cu]
