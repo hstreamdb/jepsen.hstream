@@ -4,14 +4,11 @@
             [jepsen.control :as c]
             [jepsen.control.util :as cu]
             [jepsen.hstream.kafka.db :as redpanda.db]
-            [jepsen.hstream.common.utils :refer [parse-int]]
-            [jepsen.hstream.legacy.nemesis :as legacy-nemesis]))
+            [jepsen.hstream.common.utils :refer [parse-int]]))
 
 (def hornbill
-  "Program that launches hornbill server.
-  WARNING: This module refers to jepsen.hstream.legacy.nemesis,
-  which hardcodes the server name as 'hstream-server'."
-  "/usr/local/bin/hstream-server")
+  "Program that launches hornbill server."
+  "/usr/local/bin/hornbill")
 
 (def node-ips
   {:n1 "172.20.0.11"
@@ -34,7 +31,8 @@
 (defn f-hornbill-args
   "Generate the arguments for hornbill server."
   [node]
-  [:--bind-address "0.0.0.0"
+  [:server
+   :--bind-address "0.0.0.0"
    :--port 9092
    :--metrics-port 6600
    :--advertised-address (node-ips (keyword node))
@@ -44,6 +42,18 @@
    :--log-level "debug"
    :--log-with-color
    ])
+
+;; FIXME: move to a standalone module to support hornbill nemesis
+(defn is-hornbill-server-on-node-dead?
+  [node]
+  (try+
+    (let [shell-out (c/on node
+                          (c/exec* "pgrep" "-f" "hornbill server" "||" "true"))]
+      (empty? shell-out))
+    (catch Object _
+      (info "Failed to check death on" node ":" (:message &throw-context)
+            "I think it is already dead.")
+      true)))
 
 (defn db
   "Hornbill for a particular version. No action is executed after the DB is ready."
@@ -65,11 +75,10 @@
     ;; WARNING: Starting hstream server is not idempotent now.
     ;;          However, the test usually call [:start :all].
     ;;          So we have to check if the server is already running.
-    ;; FIXME: The checking function 'is-hserver-on-node-dead?' is not
+    ;; FIXME: The checking function 'is-hornbill-server-on-node-dead?' is not
     ;;        well implemented...
-    ;; FIXME: Remove dependency on legacy-nemesis
     (start! [this test node]
-      (if (legacy-nemesis/is-hserver-on-node-dead? node)
+      (if (is-hornbill-server-on-node-dead? node)
         (c/su
          (apply (partial cu/start-daemon!
                          {:logfile (f-hornbill-log-file node)
