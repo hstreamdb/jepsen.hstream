@@ -11,10 +11,9 @@ done
 SERVER_ID=$(echo $(hostname) | cut -c 2-) # n_i -> i
 MY_IP=$(hostname -I | head -n1 | awk '{print $1;}')
 /usr/local/bin/hornbill server \
-    --bind-address 0.0.0.0 \
-    --port 9092    \
+    --listeners plaintext://0.0.0.0:9092 \
+    --advertised-listeners plaintext://$MY_IP:9092 \
     --metrics-port 6600 \
-    --advertised-address $MY_IP \
     --meta-servers http://meta:8964 \
     --store-config /etc/fdb.cluster \
     --server-id $SERVER_ID \

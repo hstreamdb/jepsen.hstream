@@ -33,10 +33,9 @@
   "Generate the arguments for hornbill server."
   [node]
   [:server
-   :--bind-address "0.0.0.0"
-   :--port 9092
+   :--listeners "plaintext://0.0.0.0:9092"
+   :--advertised-listeners (str "plaintext://" (node-ips (keyword node)) ":9092")
    :--metrics-port 6600
-   :--advertised-address (node-ips (keyword node))
    :--meta-servers "http://meta:8964"
    :--store-config "/etc/fdb.cluster"
    :--server-id (parse-int (subs node 1))
