@@ -4,7 +4,7 @@
 
 echo "docker:docker@fdb:4500" > /etc/fdb.cluster
 
-while ! fdbcli -C /etc/fdb.cluster --exec "tenant get hstream" --timeout 1 ; do
+while ! fdbcli -C /etc/fdb.cluster --exec "tenant get hornbill" --timeout 1 ; do
     sleep 1;
 done
 

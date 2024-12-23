@@ -20,10 +20,10 @@ fi
 
 echo "Can now connect to docker-based FDB cluster using $FDB_CLUSTER_FILE."
 
-echo "Create hstream tenant"
-config="configure tenant_mode=optional_experimental; createtenant hstream;"
+echo "Create hornbill tenant"
+config="configure tenant_mode=optional_experimental; createtenant hornbill;"
 if ! $fdbcli -C $FDB_CLUSTER_FILE --exec "$config" --timeout 10 ; then
-    echo "Create hstream tenant failed"
+    echo "Create hornbill tenant failed"
 fi
 
 ## Make sure the process doesn't exit
