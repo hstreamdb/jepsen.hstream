@@ -12,7 +12,8 @@
             [jepsen.hstream.kafka.db [kafka    :as db.kafka]
                                      [hstream  :as db.hstream]
                                      [redpanda :as db.redpanda]
-                                     [hornbill :as hornbill]]
+                                     [hornbill :as db.hornbill]
+                                     [flowmq   :as db.flowmq]]
             [jepsen.hstream.kafka.workload [list-append :as list-append]
                                            [queue :as queue]]
             [slingshot.slingshot :refer [try+ throw+]])
@@ -175,7 +176,8 @@
          :kafka "kafka"
          :redpanda (str "redpanda " (short-version opts))
          :hstream "kafka"
-         :hornbill "hornbill")
+         :hornbill "hornbill"
+         :flowmq "flowmq")
        " " (name (:workload opts))
        (when (:txn opts) " txn")
        " "
@@ -203,7 +205,8 @@
                         :redpanda (db.redpanda/db)
                         :kafka    (db.kafka/db)
                         :hstream  (db.hstream/db "0.19.0" (:tcpdump opts))
-                        :hornbill (hornbill/db "1.0.0-M1" (:tcpdump opts)))
+                        :hornbill (db.hornbill/db "1.0.0-M1" (:tcpdump opts))
+                        :flowmq   (db.flowmq/db "latest" (:tcpdump opts)))
         nemesis       (nemesis/package
                         {:db        db
                          :nodes     (:nodes opts)
@@ -283,10 +286,10 @@
     :parse-fn read-string
     :validate [#(and (number? %) (pos? %)) "must be a positive number"]]
 
-   [nil "--db TYPE" "Which DB do we test? Either `hstream` (default), `redpanda`, `kafka` or `hornbill`."
+   [nil "--db TYPE" "Which DB do we test? Either `hstream` (default), `redpanda`, `kafka`, `hornbill` or `flowmq`."
     :default :hstream
     :parse-fn keyword
-    :validate [#(some #{%} '(:hstream :kafka :redpanda :hornbill)) "Must be one of hstream, kafka, hornbill or redpanda"]]
+    :validate [#(some #{%} '(:hstream :kafka :redpanda :hornbill :flowmq)) "Must be one of hstream, kafka, hornbill, redpanda or flowmq"]]
 
    [nil "--db-targets TARGETS" "A comma-separated list of nodes to pause/kill/etc; e.g. one,all"
     ;:default [:primaries :all]

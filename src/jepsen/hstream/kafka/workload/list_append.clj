@@ -22,7 +22,7 @@
 
 (def partition-count
   "How many partitions per topic?"
-  2)
+  4)
 
 (defn k->topic
   "Turns a logical key into a topic."

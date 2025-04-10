@@ -1,0 +1,83 @@
+version: '3.7'
+x-node:
+  &flowmq-node
+  build: ./node-flowmq
+  env_file:
+    - ./secret/node.env
+    - ./secret/control.env
+  secrets:
+    - authorized_keys
+  tty: true
+  tmpfs:
+    - /run:size=100M
+    - /run/lock:size=100M
+  volumes:
+    - "jepsen-flowmq-shared:/var/jepsen/shared"
+    - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+    - "/tmp:/tmp:rw"
+  cap_add:
+    - ALL
+  ports:
+    - ${JEPSEN_PORT:-22}
+
+volumes:
+  jepsen-flowmq-shared:
+
+secrets:
+  authorized_keys:
+    file: ./secret/authorized_keys
+
+networks:
+  jepsen-flowmq-network:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+services:
+  fdb:
+    container_name: jepsen-flowmq-fdb
+    hostname: fdb
+    build: ./fdb-flowmq
+    env_file: ./secret/node.env
+    secrets:
+      - authorized_keys
+    tmpfs:
+      - /run:size=100M
+      - /run/lock:size=100M
+    expose:
+      - "4500"
+    networks:
+      jepsen-flowmq-network:
+        ipv4_address: 172.20.0.6
+    cap_add:
+      - ALL
+    volumes:
+      - "jepsen-flowmq-shared:/var/jepsen/shared"
+      - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+      - "/tmp:/tmp:rw"
+
+  control:
+    container_name: jepsen-flowmq-control
+    hostname: control-flowmq
+    depends_on:
+      - flowmq-1
+    build: ./control-flowmq
+    env_file: ./secret/control.env
+    privileged: true
+    expose:
+      - "22"
+      - "8080"
+    networks:
+      jepsen-flowmq-network:
+        ipv4_address: 172.20.0.8
+    volumes:
+      - "../:/home/Work"
+      - "jepsen-flowmq-shared:/var/jepsen/shared"
+
+  flowmq-1:
+    << : *flowmq-node
+    container_name: jepsen-flowmq-n1
+    hostname: n1
+    networks:
+      jepsen-flowmq-network:
+        ipv4_address: 172.20.0.11
