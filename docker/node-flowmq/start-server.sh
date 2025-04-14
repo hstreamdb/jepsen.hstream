@@ -12,6 +12,7 @@ MY_IP=$(hostname -I | head -n1 | awk '{print $1;}')
 /usr/local/bin/flowmq \
     -C /etc/fdb.cluster \
     --storage fdb \
+    --kafka-advertised-address $MY_IP \
     --with-kafka 9092 \
     --with-amqp 5672 \
     >>/tmp/$HOSTNAME.log 2>&1 &

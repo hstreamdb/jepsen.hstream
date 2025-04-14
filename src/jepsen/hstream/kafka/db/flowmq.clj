@@ -30,6 +30,7 @@
   [node]
   [:-C "/etc/fdb.cluster"
    :--storage "fdb"
+   :--kafka-advertised-address (node-ips (keyword node))
    :--with-kafka 9092
    :--with-amqp 5672
    ])
