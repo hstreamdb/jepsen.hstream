@@ -183,11 +183,11 @@
 
 (def replication-factor
   "What replication factor should we use for each topic?"
-  3)
+  1)
 
 (def poll-ms
   "How long should we poll for, in ms?"
-  3000)
+  100)
 
 (defn k->topic
   "Turns a logical key into a topic."

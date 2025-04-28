@@ -20,6 +20,12 @@ fi
 
 echo "Can now connect to docker-based FDB cluster using $FDB_CLUSTER_FILE."
 
+echo "Configure FDB tenant mode"
+config="configure tenant_mode=optional_experimental;"
+if ! $fdbcli -C $FDB_CLUSTER_FILE --exec "$config" --timeout 10 ; then
+    echo "Configure FDB tenant mode failed"
+fi
+
 ## Make sure the process doesn't exit
 ## FIXME: This makes the script block forever, which is bad for jepsen nemesis
 tail -f /dev/null
