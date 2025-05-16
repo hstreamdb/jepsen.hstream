@@ -19,4 +19,6 @@ MY_IP=$(hostname -I | head -n1 | awk '{print $1;}')
     --kafka-advertised-address $MY_IP \
     --with-kafka 9092 \
     --with-amqp 5672 \
+    --logdir /tmp \
+    --loglevel debug \
     >>/tmp/$HOSTNAME.log 2>&1 &
