@@ -4,8 +4,12 @@
 
 echo "docker:docker@fdb:4500" > /etc/fdb.cluster
 
-while ! fdbcli -C /etc/fdb.cluster --exec "status" --timeout 1 ; do
-    sleep 1;
+while true; do
+  output=$(fdbcli -C /etc/fdb.cluster --exec "status json" --timeout 1 2>/dev/null)
+  if [[ $? -eq 0 && "$output" == *'"tenant_mode" : "optional_experimental"'* ]]; then
+    break
+  fi
+  sleep 1
 done
 
 MY_IP=$(hostname -I | head -n1 | awk '{print $1;}')
